@@ -1,0 +1,242 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    # - name: install requirements
+    #   apt:
+    #     name: [
+    #       'apparmor',
+    #       'apparmor-profiles',
+    #       'conntrack',
+    #     ]
+    #     state: present
+    #     update_cache: true
+
+    - name: create /usr/share/keyrings dir
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+      
+    ## docker apt repo
+    - name: download and dearmor docker repo gpg key
+      shell:
+        cmd: curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+      args:
+        creates: /usr/share/keyrings/docker.gpg
+
+    - name: chmod dearmored docker gpg key
+      file:
+        path: /usr/share/keyrings/docker.gpg
+        mode: '0644'
+        state: file
+
+    - name: add docker repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian trixie stable'
+        state: present
+
+    ## kubernetes apt repo
+    - name: get kubernetes latest version
+      shell:
+        cmd: curl https://kubernetes.io/releases/ | grep -Eo "releases/>v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+      register: kubernetes_version
+
+    - name: download kubernetes gpg key
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version.stdout }}/deb/Release.key
+        dest: /usr/share/keyrings/kubernetes-apt-keyring.gpg
+        mode: '0644'
+
+    - name: add kubernetes repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version.stdout }}/deb/ /'
+        state: present
+
+    ## helm apt repo
+    - name: download and dearmor helm repo gpg key
+      shell:
+        cmd: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+      args:
+        creates: /usr/share/keyrings/helm.gpg
+
+    - name: chmod dearmored helm gpg key
+      file:
+        path: /usr/share/keyrings/helm.gpg
+        mode: '0644'
+        state: file
+  
+    - name: add helm repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main'
+        state: present
+
+    ## cri-o apt repo
+    - name: get cri-o latest version
+      shell:
+        cmd: curl https://cri-o.github.io/cri-o/ | grep -Eo "html\">v[0-9.]+" | grep -Eo "v[0-9]+.[0-9]+" | head -n1
+      register: crio_version
+
+    - name: download and dearmor cri-o repo gpg key
+      shell:
+        cmd: curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version.stdout }}/deb/Release.key | gpg --dearmor -o /usr/share/keyrings/cri-o-apt-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/cri-o-apt-keyring.gpg
+
+    - name: chmod dearmored cri-o gpg key
+      file:
+        path: /usr/share/keyrings/cri-o-apt-keyring.gpg
+        mode: '0644'
+        state: file
+
+    - name: add cri-o repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version.stdout }}/deb/ /'
+        state: present
+
+    - name: install prerequisites
+      apt:
+        name: [
+          'conntrack',
+          'docker-ce',
+          'docker-ce-cli',
+          'containerd.io',
+          'docker-buildx-plugin',
+          'docker-compose-plugin',
+          'kubectl',
+          'helm',
+          'cri-o',
+          'cri-tools'
+        ]
+        state: present
+        update_cache: true
+      notify: enable now cri-o
+
+    ## install cri-dockerd
+    - name: get cri-dockerd latest version
+      shell:
+        cmd: curl -s https://github.com/Mirantis/cri-dockerd/releases | grep -Eo "cri-dockerd/tree/v[0-9.]+" | grep -Eo "[0-9.]+" | head -n1
+      register: cri_dockerd_version
+
+    - name: install cri-dockerd binary
+      unarchive:
+        src: https://github.com/Mirantis/cri-dockerd/releases/download/v{{ cri_dockerd_version.stdout }}/cri-dockerd-{{ cri_dockerd_version.stdout }}.amd64.tgz
+        dest: /usr/bin
+        remote_src: yes
+        mode: 0755
+        extra_opts:
+          - '--strip-components=1'
+
+    - name: install cri-dockerd service
+      get_url:
+        url: https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+        dest: /usr/lib/systemd/system/cri-docker.service
+
+    - name: install cri-dockerd socket
+      get_url:
+        url: https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+        dest: /usr/lib/systemd/system/cri-docker.socket
+      notify: enable now cri-dockerd
+
+    ## install cni plugin
+    - name: get cni plugin latest version
+      shell:
+        cmd: curl https://github.com/containernetworking/plugins/releases | grep -Eo "tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+      register: cni_plugin_version
+
+    - name: create /opt/cni/bin dir
+      file:
+        path: /opt/cni/bin
+        state: directory
+        mode: 0755
+
+    - name: install cni plugin
+      unarchive:
+        src: https://github.com/containernetworking/plugins/releases/download/{{ cni_plugin_version.stdout }}/cni-plugins-linux-amd64-{{ cni_plugin_version.stdout }}.tgz
+        dest: /opt/cni/bin
+        remote_src: yes
+        mode: 0755
+        extra_opts:
+          - '--strip-components=0'
+
+    ## install k9s
+    - name: get latest version tag for k9s
+      shell:
+        cmd: curl -s https://github.com/derailed/k9s/releases | grep -Eo "k9s/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+      register: k9s_version
+      
+    - name: create temp dir
+      file:
+        path: /tmp/k9s-install
+        state: directory
+        mode: '0755'
+      
+    - name: download k9s tar
+      get_url:
+        url: "https://github.com/derailed/k9s/releases/download/{{ k9s_version.stdout }}/k9s_Linux_amd64.tar.gz"
+        dest: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
+        # force: yes
+      
+    - name: untar k9s archive
+      unarchive:
+        src: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
+        dest: /tmp/k9s-install/
+        remote_src: yes
+        extra_opts:
+          - --strip-components=0
+      
+    - name: install k9s binary to /usr/local/bin
+      copy:
+        src: /tmp/k9s-install/k9s
+        dest: /usr/local/bin/k9s
+        mode: '0755'
+        remote_src: yes
+        backup: yes
+      
+    - name: clean up temporary installation directory
+      file:
+        path: /tmp/k9s-install
+        state: absent
+
+    ## install argocd-cli
+    - name: install argocd-cli
+      get_url:
+        url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        dest: /usr/local/bin/argocd
+        mode: 0755
+
+    ## install minikube
+    - name: install minikube
+      get_url:
+        url: https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: 0755
+
+    - name: start minikube cluster
+      shell:
+        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --cni=false --network-plugin=cni
+
+    ## install calico cni
+    - name: get latest version tag for calico
+      shell:
+        cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+      register: calico_version
+
+    - name: install calico typha
+      shell:
+        cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version.stdout }}/manifests/calico-typha.yaml
+
+  handlers:
+    - name: enable now cri-o
+      systemd:
+        name: crio.service
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: enable now cri-dockerd
+      systemd:
+        name: cri-docker.service
+        state: started
+        enabled: yes
+        daemon_reload: yes

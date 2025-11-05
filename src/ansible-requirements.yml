@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    - name: install requirements
+      apt:
+        name: [
+          'apt-transport-https',
+          'ca-certificates',
+          'curl',
+          'gnupg',
+          'git-crypt'
+        ]
+        state: present
+        update_cache: true
+
+    - name: create /usr/share/keyrings dir
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+      
+    ## opentofu apt repo
+    - name: download opentofu gpg key
+      get_url:
+        url: https://get.opentofu.org/opentofu.gpg
+        dest: /usr/share/keyrings/opentofu.gpg
+        mode: '0644'
+        # force: yes
+            
+    - name: download and dearmor opentofu repo gpg key
+      shell:
+        cmd: curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o /usr/share/keyrings/opentofu-repo.gpg
+      args:
+        creates: /usr/share/keyrings/opentofu-repo.gpg
+      
+    - name: chmod dearmored opentofu gpg key
+      file:
+        path: /usr/share/keyrings/opentofu-repo.gpg
+        mode: '0644'
+        state: file
+      
+    - name: add opentofu repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
+        state: present
+
+    - name: install opentofu
+      apt:
+        name: [
+          'tofu'
+        ]
+        state: present
+        update_cache: true
