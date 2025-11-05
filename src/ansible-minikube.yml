@@ -2,19 +2,15 @@
 - hosts: localhost
   become: true
   tasks:
-    - name: install requirements
-      apt:
-        name: [
-          'apparmor',
-          'apparmor-profiles',
-          'conntrack',
-          'apt-transport-https',
-          'ca-certificates',
-          'curl',
-          'gnupg',
-        ]
-        state: present
-        update_cache: true
+    # - name: install requirements
+    #   apt:
+    #     name: [
+    #       'apparmor',
+    #       'apparmor-profiles',
+    #       'conntrack',
+    #     ]
+    #     state: present
+    #     update_cache: true
 
     - name: create /usr/share/keyrings dir
       file:
@@ -22,37 +18,7 @@
         state: directory
         mode: '0755'
       
-    ## opentofu apt repo
-    - name: download opentofu gpg key
-      get_url:
-        url: https://get.opentofu.org/opentofu.gpg
-        dest: /usr/share/keyrings/opentofu.gpg
-        mode: '0644'
-        # force: yes
-            
-    - name: download and dearmor opentofu repo gpg key
-      shell:
-        cmd: curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o /usr/share/keyrings/opentofu-repo.gpg
-      args:
-        creates: /usr/share/keyrings/opentofu-repo.gpg
-      
-    - name: chmod dearmored opentofu gpg key
-      file:
-        path: /usr/share/keyrings/opentofu-repo.gpg
-        mode: '0644'
-        state: file
-      
-    - name: add opentofu repository
-      apt_repository:
-        repo: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
-        state: present
-
     ## docker apt repo
-    # - name: download docker gpg key
-    #   get_url:
-    #     url: curl -fsSL https://download.docker.com/linux/debian/gpg
-    #     dest: /usr/share/keyrings/docker.gpg
-    #     mode: '0644'
     - name: download and dearmor docker repo gpg key
       shell:
         cmd: curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
@@ -73,7 +39,7 @@
     ## kubernetes apt repo
     - name: get kubernetes latest version
       shell:
-        cmd: 'curl https://kubernetes.io/releases/ | grep -Eo "releases/>v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1'
+        cmd: curl https://kubernetes.io/releases/ | grep -Eo "releases/>v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
       register: kubernetes_version
 
     - name: download kubernetes gpg key
@@ -108,7 +74,7 @@
     ## cri-o apt repo
     - name: get cri-o latest version
       shell:
-        cmd: 'curl https://cri-o.github.io/cri-o/ | grep -Eo "html\">v[0-9.]+" | grep -Eo "v[0-9]+.[0-9]+" | head -n1'
+        cmd: curl https://cri-o.github.io/cri-o/ | grep -Eo "html\">v[0-9.]+" | grep -Eo "v[0-9]+.[0-9]+" | head -n1
       register: crio_version
 
     - name: download and dearmor cri-o repo gpg key
@@ -131,12 +97,12 @@
     - name: install prerequisites
       apt:
         name: [
+          'conntrack',
           'docker-ce',
           'docker-ce-cli',
           'containerd.io',
           'docker-buildx-plugin',
           'docker-compose-plugin',
-          'tofu',
           'kubectl',
           'helm',
           'cri-o',
@@ -172,10 +138,31 @@
         dest: /usr/lib/systemd/system/cri-docker.socket
       notify: enable now cri-dockerd
 
+    ## install cni plugin
+    - name: get cni plugin latest version
+      shell:
+        cmd: curl https://github.com/containernetworking/plugins/releases | grep -Eo "tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+      register: cni_plugin_version
+
+    - name: create /opt/cni/bin dir
+      file:
+        path: /opt/cni/bin
+        state: directory
+        mode: 0755
+
+    - name: install cni plugin
+      unarchive:
+        src: https://github.com/containernetworking/plugins/releases/download/{{ cni_plugin_version.stdout }}/cni-plugins-linux-amd64-{{ cni_plugin_version.stdout }}.tgz
+        dest: /opt/cni/bin
+        remote_src: yes
+        mode: 0755
+        extra_opts:
+          - '--strip-components=0'
+
     ## install k9s
     - name: get latest version tag for k9s
       shell:
-        cmd: 'curl -s https://github.com/derailed/k9s/releases | grep -Eo "k9s/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1'
+        cmd: curl -s https://github.com/derailed/k9s/releases | grep -Eo "k9s/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
       register: k9s_version
       
     - name: create temp dir
@@ -213,11 +200,6 @@
 
     ## install argocd-cli
     - name: install argocd-cli
-      # uri:
-      #   url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-      #   follow_redirects: safe
-      #   dest: /usr/local/bin/argocd
-      #   mode: 0755
       get_url:
         url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
         dest: /usr/local/bin/argocd
@@ -232,12 +214,12 @@
 
     - name: start minikube cluster
       shell:
-        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass
+        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --cni=false --network-plugin=cni
 
     ## install calico cni
     - name: get latest version tag for calico
       shell:
-        cmd: 'curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1'
+        cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
       register: calico_version
 
     - name: install calico typha
