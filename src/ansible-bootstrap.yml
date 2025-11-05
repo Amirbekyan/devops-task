@@ -5,14 +5,13 @@
     - name: install requirements
       apt:
         name: [
-          'docker.io',
           'apparmor',
           'apparmor-profiles',
           'conntrack',
           'apt-transport-https',
           'ca-certificates',
           'curl',
-          'gnupg'
+          'gnupg',
         ]
         state: present
         update_cache: true
@@ -43,40 +42,49 @@
         mode: '0644'
         state: file
       
-    # - name: add opentofu repo to sources list
-    #   copy:
-    #     dest: /etc/apt/sources.list.d/opentofu.list
-    #     content: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
-    #     mode: '0644'
-    #     backup: yes
-    #   args:
-    #     creates: /etc/apt/sources.list.d/opentofu.list
-
     - name: add opentofu repository
       apt_repository:
         repo: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
         state: present
 
+    ## docker apt repo
+    # - name: download docker gpg key
+    #   get_url:
+    #     url: curl -fsSL https://download.docker.com/linux/debian/gpg
+    #     dest: /usr/share/keyrings/docker.gpg
+    #     mode: '0644'
+    - name: download and dearmor docker repo gpg key
+      shell:
+        cmd: curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+      args:
+        creates: /usr/share/keyrings/docker.gpg
+
+    - name: chmod dearmored docker gpg key
+      file:
+        path: /usr/share/keyrings/docker.gpg
+        mode: '0644'
+        state: file
+
+    - name: add docker repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian trixie stable'
+        state: present
+
     ## kubernetes apt repo
+    - name: get kubernetes latest version
+      shell:
+        cmd: 'curl https://kubernetes.io/releases/ | grep -Eo "releases/>v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1'
+      register: kubernetes_version
+
     - name: download kubernetes gpg key
       get_url:
-        url: https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key
+        url: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version.stdout }}/deb/Release.key
         dest: /usr/share/keyrings/kubernetes-apt-keyring.gpg
         mode: '0644'
-        # force: yes
-      
-    # - name: add kubernetes repo to sources list
-    #   copy:
-    #     dest: /etc/apt/sources.list.d/kubernetes.list
-    #     content: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /'
-    #     mode: '0644'
-    #     backup: yes
-    #   args:
-    #     creates: /etc/apt/sources.list.d/kubernetes.list
 
     - name: add kubernetes repository
       apt_repository:
-        repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /'
+        repo: 'deb [signed-by=/usr/share/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version.stdout }}/deb/ /'
         state: present
 
     ## helm apt repo
@@ -92,41 +100,83 @@
         mode: '0644'
         state: file
   
-    # - name: add helm repo to sources list
-    #   copy:
-    #     dest: /etc/apt/sources.list.d/helm-stable-debian.list
-    #     content: 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main'
-    #     mode: '0644'
-    #     backup: yes
-    #   args:
-    #     creates: /etc/apt/sources.list.d/helm-stable-debian.list
-
-    - name: add kubernetes repository
+    - name: add helm repository
       apt_repository:
         repo: 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main'
         state: present
 
-        
+    ## cri-o apt repo
+    - name: get cri-o latest version
+      shell:
+        cmd: 'curl https://cri-o.github.io/cri-o/ | grep -Eo "html\">v[0-9.]+" | grep -Eo "v[0-9]+.[0-9]+" | head -n1'
+      register: crio_version
+
+    - name: download and dearmor cri-o repo gpg key
+      shell:
+        cmd: curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version.stdout }}/deb/Release.key | gpg --dearmor -o /usr/share/keyrings/cri-o-apt-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/cri-o-apt-keyring.gpg
+
+    - name: chmod dearmored cri-o gpg key
+      file:
+        path: /usr/share/keyrings/cri-o-apt-keyring.gpg
+        mode: '0644'
+        state: file
+
+    - name: add cri-o repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_version.stdout }}/deb/ /'
+        state: present
+
     - name: install prerequisites
       apt:
         name: [
+          'docker-ce',
+          'docker-ce-cli',
+          'containerd.io',
+          'docker-buildx-plugin',
+          'docker-compose-plugin',
           'tofu',
           'kubectl',
-          'helm'
+          'helm',
+          'cri-o',
+          'cri-tools'
         ]
         state: present
         update_cache: true
+      notify: enable now cri-o
+
+    ## install cri-dockerd
+    - name: get cri-dockerd latest version
+      shell:
+        cmd: curl -s https://github.com/Mirantis/cri-dockerd/releases | grep -Eo "cri-dockerd/tree/v[0-9.]+" | grep -Eo "[0-9.]+" | head -n1
+      register: cri_dockerd_version
+
+    - name: install cri-dockerd binary
+      unarchive:
+        src: https://github.com/Mirantis/cri-dockerd/releases/download/v{{ cri_dockerd_version.stdout }}/cri-dockerd-{{ cri_dockerd_version.stdout }}.amd64.tgz
+        dest: /usr/bin
+        remote_src: yes
+        mode: 0755
+        extra_opts:
+          - '--strip-components=1'
+
+    - name: install cri-dockerd service
+      get_url:
+        url: https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+        dest: /usr/lib/systemd/system/cri-docker.service
+
+    - name: install cri-dockerd socket
+      get_url:
+        url: https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+        dest: /usr/lib/systemd/system/cri-docker.socket
+      notify: enable now cri-dockerd
 
     ## install k9s
     - name: get latest version tag for k9s
-      uri:
-        url: https://github.com/derailed/k9s/releases
-        return_content: yes
-      register: k9s_releases
-      
-    - name: extract latest version number
-      set_fact:
-        k9s_latest_version: "{{ k9s_releases.content | regex_search('v[0-9.]+', 'multiline') | first }}"
+      shell:
+        cmd: 'curl -s https://github.com/derailed/k9s/releases | grep -Eo "k9s/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1'
+      register: k9s_version
       
     - name: create temp dir
       file:
@@ -136,7 +186,7 @@
       
     - name: download k9s tar
       get_url:
-        url: "https://github.com/derailed/k9s/releases/download/{{ latest_version }}/k9s_Linux_amd64.tar.gz"
+        url: "https://github.com/derailed/k9s/releases/download/{{ k9s_version.stdout }}/k9s_Linux_amd64.tar.gz"
         dest: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
         # force: yes
       
@@ -163,9 +213,13 @@
 
     ## install argocd-cli
     - name: install argocd-cli
-      uri:
+      # uri:
+      #   url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+      #   follow_redirects: safe
+      #   dest: /usr/local/bin/argocd
+      #   mode: 0755
+      get_url:
         url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-        follow_redirects: safe
         dest: /usr/local/bin/argocd
         mode: 0755
 
@@ -178,4 +232,19 @@
 
     - name: start minikube cluster
       shell:
-        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass
+        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --addons=calico
+
+  handlers:
+    - name: enable now cri-o
+      systemd:
+        name: crio.service
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: enable now cri-dockerd
+      systemd:
+        name: cri-docker.service
+        state: started
+        enabled: yes
+        daemon_reload: yes
