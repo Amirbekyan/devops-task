@@ -29,10 +29,8 @@
         url: https://get.opentofu.org/opentofu.gpg
         dest: /usr/share/keyrings/opentofu.gpg
         mode: '0644'
-        force: yes
-      args:
-        creates: /usr/share/keyrings/opentofu.gpg
-      
+        # force: yes
+            
     - name: download and dearmor opentofu repo gpg key
       shell:
         cmd: curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o /usr/share/keyrings/opentofu-repo.gpg
@@ -65,9 +63,7 @@
         url: https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key
         dest: /usr/share/keyrings/kubernetes-apt-keyring.gpg
         mode: '0644'
-        force: yes
-      args:
-        creates: /usr/share/keyrings/kubernetes-apt-keyring.gpg
+        # force: yes
       
     # - name: add kubernetes repo to sources list
     #   copy:
@@ -142,7 +138,7 @@
       get_url:
         url: "https://github.com/derailed/k9s/releases/download/{{ latest_version }}/k9s_Linux_amd64.tar.gz"
         dest: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
-        force: yes
+        # force: yes
       
     - name: untar k9s archive
       unarchive:
