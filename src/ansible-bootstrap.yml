@@ -1,0 +1,185 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    - name: install requirements
+      apt:
+        name: [
+          'docker.io',
+          'apparmor',
+          'apparmor-profiles',
+          'conntrack',
+          'apt-transport-https',
+          'ca-certificates',
+          'curl',
+          'gnupg'
+        ]
+        state: present
+        update_cache: true
+
+    - name: create /usr/share/keyrings dir
+      file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+      
+    ## opentofu apt repo
+    - name: download opentofu gpg key
+      get_url:
+        url: https://get.opentofu.org/opentofu.gpg
+        dest: /usr/share/keyrings/opentofu.gpg
+        mode: '0644'
+        force: yes
+      args:
+        creats: /usr/share/keyrings/opentofu.gpg
+      
+    - name: download and dearmor opentofu repo gpg key
+      shell:
+        cmd: curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o /usr/share/keyrings/opentofu-repo.gpg
+      args:
+        creates: /usr/share/keyrings/opentofu-repo.gpg
+      
+    - name: chmod dearmored opentofu gpg key
+      file:
+        path: /usr/share/keyrings/opentofu-repo.gpg
+        mode: '0644'
+        state: file
+      
+    # - name: add opentofu repo to sources list
+    #   copy:
+    #     dest: /etc/apt/sources.list.d/opentofu.list
+    #     content: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
+    #     mode: '0644'
+    #     backup: yes
+    #   args:
+    #     creates: /etc/apt/sources.list.d/opentofu.list
+
+    - name: add opentofu repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
+        state: present
+
+    ## kubernetes apt repo
+    - name: download kubernetes gpg key
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key
+        dest: /usr/share/keyrings/kubernetes-apt-keyring.gpg
+        mode: '0644'
+        force: yes
+      args:
+        creates: /usr/share/keyrings/kubernetes-apt-keyring.gpg
+      
+    # - name: add kubernetes repo to sources list
+    #   copy:
+    #     dest: /etc/apt/sources.list.d/kubernetes.list
+    #     content: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /'
+    #     mode: '0644'
+    #     backup: yes
+    #   args:
+    #     creates: /etc/apt/sources.list.d/kubernetes.list
+
+    - name: add kubernetes repository
+      apt_repository:
+        repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /'
+        state: present
+
+    ## helm apt repo
+    - name: download and dearmor helm repo gpg key
+      shell:
+        cmd: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+      args:
+        creates: /usr/share/keyrings/helm.gpg
+
+    - name: chmod dearmored helm gpg key
+      file:
+        path: /usr/share/keyrings/helm.gpg
+        mode: '0644'
+        state: file
+  
+    # - name: add helm repo to sources list
+    #   copy:
+    #     dest: /etc/apt/sources.list.d/helm-stable-debian.list
+    #     content: 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main'
+    #     mode: '0644'
+    #     backup: yes
+    #   args:
+    #     creates: /etc/apt/sources.list.d/helm-stable-debian.list
+
+    - name: add kubernetes repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main'
+        state: present
+
+        
+    - name: install prerequisites
+      apt:
+        name: [
+          'tofu',
+          'kubectl',
+          'helm'
+        ]
+        state: present
+        update_cache: true
+
+    ## install k9s
+    - name: get latest version tag for k9s
+      uri:
+        url: https://github.com/derailed/k9s/releases
+        return_content: yes
+      register: k9s_releases
+      
+    - name: extract latest version number
+      set_fact:
+        k9s_latest_version: "{{ k9s_releases.content | regex_search('v[0-9.]+', 'multiline') | first }}"
+      
+    - name: create temp dir
+      file:
+        path: /tmp/k9s-install
+        state: directory
+        mode: '0755'
+      
+    - name: download k9s tar
+      get_url:
+        url: "https://github.com/derailed/k9s/releases/download/{{ latest_version }}/k9s_Linux_amd64.tar.gz"
+        dest: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
+        force: yes
+      
+    - name: untar k9s archive
+      unarchive:
+        src: /tmp/k9s-install/k9s_Linux_amd64.tar.gz
+        dest: /tmp/k9s-install/
+        remote_src: yes
+        extra_opts:
+          - --strip-components=0
+      
+    - name: install k9s binary to /usr/local/bin
+      copy:
+        src: /tmp/k9s-install/k9s
+        dest: /usr/local/bin/k9s
+        mode: '0755'
+        remote_src: yes
+        backup: yes
+      
+    - name: clean up temporary installation directory
+      file:
+        path: /tmp/k9s-install
+        state: absent
+
+    ## install argocd-cli
+    - name: install argocd-cli
+      uri:
+        url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        follow_redirects: safe
+        dest: /usr/local/bin/argocd
+        mode: 0755
+
+    ## install minikube
+    - name: install minikube
+      get_url:
+        url: https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: 0755
+
+    - name: start minikube cluster
+      shell:
+        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass
