@@ -31,7 +31,7 @@
         mode: '0644'
         force: yes
       args:
-        creats: /usr/share/keyrings/opentofu.gpg
+        creates: /usr/share/keyrings/opentofu.gpg
       
     - name: download and dearmor opentofu repo gpg key
       shell:
