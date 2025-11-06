@@ -60,28 +60,3 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
-
-{{- define "olleh.volumes" -}}
-- name: nginxconf
-  configMap:
-    name: {{ include "olleh.fullname" . }}-nginx-conf
-    defaultMode: 0644
-- name: indexhtml
-  configMap:
-    name: {{ include "olleh.fullname" . }}-index-html
-    defaultMode: 0644
-{{- with .Values.volumes }}
-{{ toYaml . }}
-{{- end }}
-{{- end -}}
-
-{{- define "olleh.volumeMounts" -}}
-- name: nginxconf
-  mountPath: /etc/nginx/conf.d/
-- name: indexhtml
-  subPath: index.html
-  mountPath: /usr/share/nginx/html/index.html
-{{- with .Values.volumeMounts }}
-{{ toYaml . }}
-{{- end }}
-{{- end -}}
