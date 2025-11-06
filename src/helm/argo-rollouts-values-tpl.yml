@@ -102,7 +102,7 @@ controller:
   # -- [priorityClassName] for the controller
   priorityClassName: ""
   # -- The number of controller pods to run
-  replicas: 2
+  replicas: 1
   image:
     # -- Registry to use
     registry: quay.io
@@ -269,7 +269,7 @@ podAnnotations: {}
 
 # -- Security Context to set on pod level
 podSecurityContext:
-  runAsNonRoot: true
+  runAsNonRoot: false
 
 # -- Security Context to set on container level
 containerSecurityContext:
@@ -342,7 +342,7 @@ dashboard:
   affinity: {}
   logging:
     # -- Set the logging level (one of: `debug`, `info`, `warn`, `error`)
-    level: info
+    level: debug
     # -- Set the klog logging level
     kloglevel: "0"
 
