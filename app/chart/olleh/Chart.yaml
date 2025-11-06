@@ -1,0 +1,9 @@
+apiVersion: v2
+name: olleh
+description: A Helm chart for olleh
+maintainers:
+- name: Amirbekyan
+  email: mousheghamirbekyan@gmail.com
+type: application
+version: 0.1.1
+appVersion: latest
