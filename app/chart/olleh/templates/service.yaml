@@ -13,3 +13,21 @@ spec:
       name: http
   selector:
     {{- include "olleh.selectorLabels" . | nindent 4 }}
+{{- if .Values.rollout.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "olleh.fullname" . }}-preview
+  labels:
+    {{- include "olleh.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "olleh.selectorLabels" . | nindent 4 }}
+{{- end }}

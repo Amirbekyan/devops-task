@@ -1,14 +1,19 @@
-{{- if not .Values.rollout.enabled -}}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rollout.enabled -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "olleh.fullname" . }}
   labels:
     {{- include "olleh.labels" . | nindent 4 }}
 spec:
+  strategy:
+    blueGreen:
+      activeService: {{ template "olleh.fullname" . }}
+      previewService: {{ template "olleh.fullname" . }}-preview
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       {{- include "olleh.selectorLabels" . | nindent 6 }}
