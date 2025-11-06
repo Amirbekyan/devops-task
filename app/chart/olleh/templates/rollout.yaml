@@ -10,6 +10,7 @@ spec:
     blueGreen:
       activeService: {{ template "olleh.fullname" . }}
       previewService: {{ template "olleh.fullname" . }}-preview
+      autoPromotionEnabled: {{ .Values.rollout.autoPromotionEnabled }}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
