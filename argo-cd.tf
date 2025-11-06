@@ -10,17 +10,17 @@ locals {
       # helm-charts = {
       #   type = "helm"
       #   name = "helm-charts"
-      #   url  = "https://raw.githubusercontent.com/deeporiginbio/helm-charts/gh-pages"
+      #   url  = "https://raw.githubusercontent.com/amirbekyan/helm-charts/gh-pages"
       #   # enableOCI = "false"
-      #   username = "formiclabs-ci-bot"
-      #   password = var.formiclabs_ci_bot_github_pat
+      #   username = var.github.user
+      #   password = var.github.pat
       # }
       # gitops = {
       #   type     = "git"
       #   name     = "gitops"
-      #   url      = "https://github.com/deeporiginbio/gitops.git"
-      #   username = "formiclabs-ci-bot"
-      #   password = var.formiclabs_ci_bot_github_pat
+      #   url      = "https://github.com/amirbekyan/gitops.git"
+      #   username = var.github.user
+      #   password = var.github.pat
       # }
       git = {
         type     = "git"
@@ -34,7 +34,7 @@ locals {
     notifications_enabled = false
     slack_channel         = "var.argocd_notifications.channel"
     slack_oauth_token     = "var.argocd_notifications.oauth_token"
-    prometheus_enabled    = false
+    prometheus_enabled    = true
   }
 }
 

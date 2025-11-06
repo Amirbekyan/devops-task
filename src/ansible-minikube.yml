@@ -214,7 +214,7 @@
 
     - name: start minikube cluster
       shell:
-        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --cni=false --network-plugin=cni
+        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --addons=storage-provisioner --cni=false --network-plugin=cni
 
     ## install calico cni
     - name: get latest version tag for calico

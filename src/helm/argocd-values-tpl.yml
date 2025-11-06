@@ -883,7 +883,7 @@ controller:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor interval
       interval: 30s
       # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
@@ -904,7 +904,7 @@ controller:
       namespace: ""
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
     rules:
@@ -982,7 +982,7 @@ dex:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor interval
       interval: 30s
       # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
@@ -1003,7 +1003,7 @@ dex:
       namespace: ""
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
 
@@ -1544,7 +1544,7 @@ redis:
 
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Interval at which metrics should be scraped
       interval: 30s
       # -- When true, honorLabels preserves the metric’s labels when they collide with the target’s labels.
@@ -2196,7 +2196,7 @@ server:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor interval
       interval: 30s
       # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
@@ -2219,7 +2219,7 @@ server:
       namespace: "" # monitoring
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
 
@@ -2774,7 +2774,7 @@ repoServer:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor interval
       interval: 30s
       # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
@@ -2797,7 +2797,7 @@ repoServer:
       namespace: "" # "monitoring"
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
 
@@ -2941,7 +2941,7 @@ applicationSet:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor interval
       interval: 30s
       # -- Prometheus ServiceMonitor scrapeTimeout. If empty, Prometheus uses the global scrape timeout unless it is less than the target's scrape interval value in which the latter is used.
@@ -2964,7 +2964,7 @@ applicationSet:
       namespace: ""  # monitoring
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
 
@@ -3352,13 +3352,13 @@ notifications:
       portName: http-metrics
     serviceMonitor:
       # -- Enable a prometheus ServiceMonitor
-      enabled: true
+      enabled: ${prometheus_enabled}
       # -- Prometheus ServiceMonitor selector
       selector: {}
         # prometheus: kube-prometheus
       # -- Prometheus ServiceMonitor labels
       additionalLabels:
-        release: prometheus
+        ${prometheus_labels}
       # -- Prometheus ServiceMonitor annotations
       annotations: {}
       namespace: "" #monitoring
@@ -3386,8 +3386,8 @@ notifications:
 
     # service.alertmanager: |
     #   targets:
-    #     - alert.deeporigin.io
-    #   scheme: https
+    #     - prometheus-alertmanager.prometheus
+    #   scheme: http
     #   basicAuth:
     #     username: $alertmanager-user
     #     password: $alertmanager-pass

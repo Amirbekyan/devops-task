@@ -52,18 +52,39 @@ locals {
       # }
     }
     ingresses = {
-      # prometheus = {
-      #   namespace = module.prometheus_worker_us.prometheus_namespace_id
-      #   annotations = {
-      #     "cert-manager.io/cluster-issuer"                   = "letsencrypt-production"
-      #     "nginx.ingress.kubernetes.io/enable-opentelemetry" = true
-      #   }
-      #   host       = "prometheus.worker.us.staging.deeporigin.io"
-      #   backend    = "prometheus-kube-prometheus-prometheus"
-      #   port       = "9090"
-      #   tls        = true
-      #   basic_auth = "prometheus"
-      # }
+      grafana = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = false
+        }
+        host       = "grafana.devops-task"
+        backend    = "grafana"
+        port       = "80"
+        tls        = false
+        basic_auth = null
+      }
+      prometheus = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = false
+        }
+        host       = "prometheus.devops-task"
+        backend    = "prometheus-prometheus"
+        port       = "9090"
+        tls        = false
+        basic_auth = null
+      }
+      alert = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = false
+        }
+        host       = "alert.devops-task"
+        backend    = "prometheus-alertmanager"
+        port       = "9093"
+        tls        = false
+        basic_auth = null
+      }
     }
     # otlp_collector_host = "opentelemetry-collector.opentelemetry"
     # otlp_collector_port = 4317
@@ -137,7 +158,7 @@ resource "helm_release" "ingress_nginx" {
           # remote_addr                     = "$proxy_protocol_addr"
           # time                            = "$time_iso8601"
           # bytes_sent                      = "$bytes_sent"
-          ## the below keys are matched with deeporigin apps logs keys
+          ## the below keys are matched with apps logs keys
           method = "$request_method"
           # trace_id  = "$opentelemetry_trace_id"
           # span_id   = "$opentelemetry_span_id"
@@ -174,7 +195,7 @@ resource "helm_release" "ingress_nginx" {
       }))
       tcp_services = indent(2, yamlencode(local.ingress_nginx.tcp_services))
       # prometheus_enabled = true
-      prometheus_enabled = false
+      prometheus_enabled = true
       prometheus_labels = indent(8, yamlencode({
         release = "prometheus"
       }))
@@ -211,7 +232,7 @@ resource "kubernetes_manifest" "ingress" {
         each.value.basic_auth != null ? {
           "nginx.ingress.kubernetes.io/auth-type"   = "basic"
           "nginx.ingress.kubernetes.io/auth-secret" = kubernetes_secret.basic_auth[each.value.basic_auth].metadata[0].name
-          "nginx.ingress.kubernetes.io/auth-realm"  = "DeepOrigin"
+          "nginx.ingress.kubernetes.io/auth-realm"  = "DevOps Task"
         } : {}
       )
     }
