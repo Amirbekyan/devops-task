@@ -1928,7 +1928,18 @@ server:
   ## If your target Kubernetes cluster(s) require a custom credential (exec) plugin
   ## you could use this (and the same in the application controller pod) to provide such executable
   ## Ref: https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
-  initContainers: []
+  initContainers:
+    - name: rollout-extension
+      image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.1
+      env:
+        - name: EXTENSION_URL
+          value: https://github.com/argoproj-labs/rollout-extension/releases/download/v0.3.5/extension.tar
+      volumeMounts:
+        - name: extensions
+          mountPath: /tmp/extensions/
+      securityContext:
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
   #  - name: download-tools
   #    image: alpine:3
   #    command: [sh, -c]
@@ -1940,13 +1951,17 @@ server:
   #        name: custom-tools
 
   # -- Additional volumeMounts to the server main container
-  volumeMounts: []
+  volumeMounts:
+    - name: extensions
+      mountPath: /tmp/extensions/
   #  - mountPath: /usr/local/bin/kubelogin
   #    name: custom-tools
   #    subPath: kubelogin
 
   # -- Additional volumes to the server pod
-  volumes: []
+  volumes:
+    - name: extensions
+      emptyDir: {}
   #  - name: custom-tools
   #    emptyDir: {}
 
