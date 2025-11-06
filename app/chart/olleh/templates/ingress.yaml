@@ -78,7 +78,7 @@ spec:
             {{- end }}
             backend:
               service:
-                name: {{ include "olleh.fullname" $ }}
+                name: {{ include "olleh.fullname" $ }}-preview
                 port:
                   number: {{ $.Values.service.port }}
           {{- end }}
