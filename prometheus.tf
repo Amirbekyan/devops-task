@@ -328,3 +328,24 @@ resource "kubernetes_secret" "alertmanager_config" {
     })
   }
 }
+
+resource "helm_release" "loki" {
+  name       = "loki"
+  chart      = "loki"
+  repository = "https://grafana.github.io/helm-charts"
+  namespace  = kubernetes_namespace.prometheus.id
+  version    = "5.36.3"
+
+  values = [
+    templatefile("${path.module}/src/helm/loki-values-tpl.yml", {
+      cluster_domain     = "cluster.local"
+      persistence_size   = "20Gi"
+      storage_class      = "standard"
+      auth_enabled       = false
+      replicas           = 1
+      storage_type       = "filesystem"
+      prometheus_address = "http://prometheus:9090"
+      grafana_folder     = "Loki"
+    })
+  ]
+}

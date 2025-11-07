@@ -31,10 +31,10 @@ locals {
       }
     }
     env                   = "devops-task"
-    notifications_enabled = false
-    slack_channel         = "var.argocd_notifications.channel"
-    slack_oauth_token     = "var.argocd_notifications.oauth_token"
-    prometheus_enabled    = true
+    notifications_enabled = true
+    # slack_channel         = "var.argocd_notifications.channel"
+    # slack_oauth_token     = "var.argocd_notifications.oauth_token"
+    prometheus_enabled = true
   }
 }
 
@@ -60,9 +60,10 @@ resource "helm_release" "argocd" {
       redis_exporter        = local.argocd.redis_exporter
       env                   = local.argocd.env
       notifications_enabled = local.argocd.notifications_enabled
-      slack_channel         = local.argocd.slack_channel
-      slack_oauth_token     = local.argocd.slack_oauth_token
-      prometheus_enabled    = local.argocd.prometheus_enabled
+      # slack_channel         = local.argocd.slack_channel
+      # slack_oauth_token     = local.argocd.slack_oauth_token
+      webhook_token      = var.webhook_url.mgmt
+      prometheus_enabled = local.argocd.prometheus_enabled
       prometheus_labels = indent(8, yamlencode({
         release = "prometheus"
       }))

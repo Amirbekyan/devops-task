@@ -2,3 +2,10 @@ github = {
   user = "github-user"
   pat  = "ghp_yORG17H0BPr1vAT3a66355T0kNIn5tD0FD15"
 }
+
+webhook_url = {
+  mgmt = "https://webhook.site/0574ff7d-80d7-4b0e-923e-829e6119f787"
+  dev  = "https://webhook.site/0574ff7d-80d7-4b0e-923e-829e6119f787"
+  stg  = "https://webhook.site/0574ff7d-80d7-4b0e-923e-829e6119f787"
+  prod = "https://webhook.site/0574ff7d-80d7-4b0e-923e-829e6119f787"
+}

@@ -3319,7 +3319,7 @@ notifications:
     ## Can be used for templates, notification services etc. Some examples given below.
     ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/overview/
     items:
-      slack-token: ${slack_oauth_token}
+      # slack-token: {slack_oauth_token}
       #   # For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/slack/
 
       # alertmanager-user: basic-auth-user
@@ -3328,7 +3328,7 @@ notifications:
       # grafana-apiKey:
       #   # For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/grafana/
 
-      # webhooks-github-token:
+      webhook-token: ${webhook_token}
 
       # email-username:
       # email-password:
@@ -3379,10 +3379,16 @@ notifications:
   # @default -- See [values.yaml]
   ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/overview/
   notifiers:
-    service.slack: |
-      token: $slack-token
+    # service.slack: |
+    #   token: $slack-token
     #  channels:
-    #    - ${slack_channel}
+    #    - {slack_channel}
+
+    service.webhook.site: |
+      url: $webhook-token
+      headers:
+        - name: Content-Type
+          value: application/json
 
     # service.alertmanager: |
     #   targets:
@@ -3523,9 +3529,10 @@ notifications:
   ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/subscriptions/
   subscriptions:
     - recipients:
-        - slack:${slack_channel}
+        # - slack:{slack_channel}
         # - alertmanager
         # - email:test@gmail.com
+        - site
       triggers:
         - on-created
         - on-deleted
@@ -3551,164 +3558,168 @@ notifications:
   templates:
     template.app-created: |
       message: Application {{.app.metadata.name}} has been created.
-      slack:
-        attachments: |
-          [{
-            "title": "{{ .app.metadata.name}}",
-            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-            "color": "#18be52",
-            "fields": [
+      webhook:
+        site:
+          method: POST
+          body: |
             {
-              "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-              "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
-              "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": "Sync Status",
-              "value": "{{.app.status.sync.status}}",
-              "short": true
-            },
-            {
-              "title": "Self Heal",
-              "value": "{{.app.spec.syncPolicy.automated.selfHeal}}",
-              "short": true
+              "attachments": [{
+                "title": "{{ .app.metadata.name}}",
+                "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                "color": "#18be52",
+                "fields": [
+                  {
+                    "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+                    "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
+                    "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": "Sync Status",
+                    "value": "{{.app.status.sync.status}}",
+                    "short": true
+                  },
+                  {
+                    "title": "Self Heal",
+                    "value": "{{.app.spec.syncPolicy.automated.selfHeal}}",
+                    "short": true
+                  }
+                  {{range $index, $c := .app.status.conditions}}
+                  ,
+                  {
+                    "title": "{{$c.type}}",
+                    "value": "{{$c.message}}",
+                    "short": true
+                  }
+                  {{end}}
+                ]
+              }]
             }
-            {{range $index, $c := .app.status.conditions}}
-            ,
-            {
-              "title": "{{$c.type}}",
-              "value": "{{$c.message}}",
-              "short": true
-            }
-            {{end}}
-            ]
-          }]
-        deliveryPolicy: Post
-        groupingKey: ""
-        notifyBroadcast: false
     template.app-deleted: |
       message: Application {{.app.metadata.name}} has been deleted.
     template.app-deployed: |
       message: |
         {{if or (eq .serviceType "slack") (eq .serviceType "alertmanager")}}:white_check_mark:{{end}} Application {{.app.metadata.name}} is now running new version of deployments manifests.
-      slack:
-        attachments: |
-          [{
-            "title": "{{ .app.metadata.name}}",
-            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-            "color": "#18be52",
-            "fields": [
+      webhook:
+        site:
+          method: POST
+          body: |
             {
-              "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-              "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
-              "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": "Sync Status",
-              "value": "{{.app.status.sync.status}}",
-              "short": true
+              "attachments": [{
+                "title": "{{ .app.metadata.name}}",
+                "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                "color": "#18be52",
+                "fields": [
+                  {
+                    "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+                    "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
+                    "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": "Sync Status",
+                    "value": "{{.app.status.sync.status}}",
+                    "short": true
+                  }
+                  {{range $index, $c := .app.status.conditions}}
+                  ,
+                  {
+                    "title": "{{$c.type}}",
+                    "value": "{{$c.message}}",
+                    "short": true
+                  }
+                  {{end}}
+                ]
+              }]
             }
-            {{range $index, $c := .app.status.conditions}}
-            ,
-            {
-              "title": "{{$c.type}}",
-              "value": "{{$c.message}}",
-              "short": true
-            }
-            {{end}}
-            ]
-          }]
-        deliveryPolicy: Post
-        groupingKey: "{{index .app.status.sync.revisions 1}}"
-        notifyBroadcast: false
     template.app-health-degraded: |
       message: |
         {{if eq .serviceType "slack"}}:exclamation:{{end}} Application {{.app.metadata.name}} has degraded.
         Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
-      slack:
-        attachments: |
-          [{
-            "title": "{{ .app.metadata.name}}",
-            "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-            "color": "#f4c030",
-            "fields": [
+      webhook:
+        site:
+          method: POST
+          body: |
             {
-              "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-              "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
-              "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": "Health Status",
-              "value": "{{.app.status.health.status}}",
-              "short": true
+              "attachments": [{
+                "title": "{{ .app.metadata.name}}",
+                "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                "color": "#f4c030",
+                "fields": [
+                  {
+                    "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+                    "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
+                    "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": "Health Status",
+                    "value": "{{.app.status.health.status}}",
+                    "short": true
+                  }
+                  {{range $index, $c := .app.status.conditions}}
+                  ,
+                  {
+                    "title": "{{$c.type}}",
+                    "value": "{{$c.message}}",
+                    "short": true
+                  }
+                {{end}}
+                ]
+              }]
             }
-            {{range $index, $c := .app.status.conditions}}
-            ,
-            {
-              "title": "{{$c.type}}",
-              "value": "{{$c.message}}",
-              "short": true
-            }
-            {{end}}
-            ]
-          }]
-        deliveryPolicy: Post
-        groupingKey: ""
-        notifyBroadcast: false
     template.app-sync-failed: |
       message: |
         {{if eq .serviceType "slack"}}:exclamation:{{end}}  The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}
         Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
-      slack:
-        attachments: |
-          [{
-            "title": "{{ .app.metadata.name}}",
-            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-            "color": "#E96D76",
-            "fields": [
+      webhook:
+        site:
+          method: POST
+          body: |
             {
-              "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-              "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
-              "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": "Sync Status",
-              "value": "{{.app.status.sync.status}}",
-              "short": true
+              "attachments": [{
+                "title": "{{ .app.metadata.name}}",
+                "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                "color": "#E96D76",
+                "fields": [
+                  {
+                    "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+                    "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
+                    "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": "Sync Status",
+                    "value": "{{.app.status.sync.status}}",
+                    "short": true
+                  }
+                  {{range $index, $c := .app.status.conditions}}
+                  ,
+                  {
+                    "title": "{{$c.type}}",
+                    "value": "{{$c.message}}",
+                    "short": true
+                  }
+                  {{end}}
+                ]
+              }]
             }
-            {{range $index, $c := .app.status.conditions}}
-            ,
-            {
-              "title": "{{$c.type}}",
-              "value": "{{$c.message}}",
-              "short": true
-            }
-            {{end}}
-            ]
-          }]
-        deliveryPolicy: Post
-        groupingKey: ""
-        notifyBroadcast: false
     # template.app-sync-running: |
     #   email:
     #     subject: Start syncing application {{.app.metadata.name}}.
@@ -3731,7 +3742,7 @@ notifications:
     #     attachments: |-
     #       [{
     #         "title": "{{ .app.metadata.name}}",
-    #         "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+    #         "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
     #         "color": "#0DADEA",
     #         "fields": [
     #         {
@@ -3764,41 +3775,42 @@ notifications:
             * {{$c.message}}
         {{end}}
         {{end}}
-      slack:
-        attachments: |
-          [{
-            "title": "{{ .app.metadata.name}}",
-            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-            "color": "#E96D76",
-            "fields": [
+      webhook:
+        site:
+          method: POST
+          body: |
             {
-              "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-              "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
-              "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
-              "short": true
-            },
-            {
-              "title": "Sync Status",
-              "value": "{{.app.status.sync.status}}",
-              "short": true
+              "attachments": [{
+                "title": "{{ .app.metadata.name}}",
+                "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                "color": "#E96D76",
+                "fields": [
+                  {
+                    "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+                    "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": {{- if .app.status.sync.revision }} "Revision" {{- else if .app.status.sync.revisions }} "Revisions" {{- end }},
+                    "value": {{- if .app.status.sync.revision }} "{{.app.status.sync.revision}}" {{- else if .app.status.sync.revisions }} "{{- range $index, $revision := .app.status.sync.revisions }}{{ if $revision }}\n{{ end }} {{ printf "<%s/commit/%s|%s>" ((index $.app.spec.sources $index).repoURL | trimSuffix ".git") $revision $revision}}{{- end }}" {{- end }},
+                    "short": true
+                  },
+                  {
+                    "title": "Sync Status",
+                    "value": "{{.app.status.sync.status}}",
+                    "short": true
+                  }
+                  {{range $index, $c := .app.status.conditions}}
+                  ,
+                  {
+                    "title": "{{$c.type}}",
+                    "value": "{{$c.message}}",
+                    "short": true
+                  }
+                  {{end}}
+                ]
+              }]
             }
-            {{range $index, $c := .app.status.conditions}}
-            ,
-            {
-              "title": "{{$c.type}}",
-              "value": "{{$c.message}}",
-              "short": true
-            }
-            {{end}}
-            ]
-          }]
-        deliveryPolicy: Post
-        groupingKey: ""
-        notifyBroadcast: false
     # template.app-sync-succeeded: |
     #   email:
     #     subject: Application {{.app.metadata.name}} has been successfully synced.
@@ -3809,7 +3821,7 @@ notifications:
     #     attachments: |-
     #       [{
     #         "title": "{{ .app.metadata.name}}",
-    #         "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+    #         "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
     #         "color": "#18be52",
     #         "fields": [
     #         {

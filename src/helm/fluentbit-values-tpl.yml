@@ -1,0 +1,165 @@
+fluentbit:
+  version: ${version}
+  resources:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 10m
+      memory: 25Mi
+  matchLabels:
+    fluentbit.fluent.io/enabled: "true"
+
+clusterinputs:
+  - name: tail
+    spec:
+      tail:
+        path: /var/log/containers/*.log
+        excludePath: ${exclude_paths}
+        parser: cri
+        db: /fluent-bit/tail/pos.db
+        dbSync: Normal
+        memBufLimit: 20MB
+        readFromHead: true
+        refreshIntervalSeconds: 10
+        skipLongLines: true
+        storageType: memory
+        tagRegex: (?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace_name>[^_]+)_(?<container_name>.+)-
+        tag: kube.<namespace_name>.<pod_name>.<container_name>
+
+  - name: prometheus-exporter
+    spec:
+      fluentBitMetrics:
+        scrapeInterval: "5"
+        scrapeOnStart: true
+        tag: fluentbit.metrics
+
+clusterfilters:
+  - name: k8s
+    spec:
+      match: kube.*
+      filters:
+        - kubernetes:
+            labels: false
+            annotations: false
+            k8sLoggingExclude: true
+            k8sLoggingParser: true
+            kubeCAFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            kubeTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+            kubeURL: https://kubernetes.default.svc:443
+            kubeTagPrefix: kube.
+            regexParser: k8s-custom-tag
+        - nest:
+            nestedUnder: kubernetes
+            operation: lift
+            addPrefix: kubernetes_
+        - modify:
+            rules:
+            - remove: stream
+            - remove: kubernetes_pod_id
+            - remove: kubernetes_host
+            - remove: kubernetes_container_hash
+        - nest:
+            wildcard:
+            - kubernetes_*
+            operation: nest
+            nestUnder: kubernetes
+            removePrefix: kubernetes_
+
+  - name: http
+    spec:
+      match: kube.ingress-nginx*controller
+      filters:
+        # - parser:
+        #     keyName: message
+        #     parser: kong
+        #     reserveData: true
+        # - parser:
+        #     keyName: message
+        #     parser: nginx
+        #     reserveData: true
+        - parser:
+            keyName: message
+            parser: json
+            reserveData: true
+
+  - name: olleh
+    spec:
+      # matchRegex: kube\.(olleh).*
+      matchRegex: kube.olleh.*
+      filters:
+        - parser:
+            keyName: message
+            parser: docker
+            reserveData: true
+          rewriteTag:
+            rules:
+            - $level ^debug$ drop false
+            # $key REGEX new_tag KEEP
+
+clusterparsers:
+  - name: k8s-custom-tag
+    spec:
+      regex:
+        regex: (?<namespace_name>[^.]+)\.(?<pod_name>[^.]+)\.(?<container_name>[^.]+)
+
+  # - name: kong
+  #   spec:
+  #     regex:
+  #       regex: '^(?<host>[^ ]*) (?<remote>[^ ]*) - (?<user>[^ ]*) \[(?<apptime>[^\]]*)\]
+  #         "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^
+  #         ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")'
+  #       timeFormat: '%d/%b/%Y:%H:%M:%S %z'
+  #       timeKey: apptime
+
+clusteroutputs:
+  - name: loki
+    spec:
+      # matchRegex = "(?:kube|service)\\.(.*)"
+      match: kube.*
+      loki:
+        autoKubernetesLabels: "on"
+        host: ${loki_host}
+        port: ${loki_port}
+        tenantID:
+          valueFrom:
+            secretKeyRef:
+              key: id
+              name: ${loki_auth_secret}
+        lineFormat: json
+        labels:
+          ${labels}
+        labelKeys:
+          ## k8s
+          - $kubernetes['namespace_name']
+          - $kubernetes['pod_name']
+          - $kubernetes['container_name']
+          - $kubernetes['container_image']
+          ## http
+          - $host
+          - $status
+          - $remote_addr
+          ## app
+          - $context
+          ## shared between http and app
+          - $app
+          - $trace_id
+          - $span_id
+          - $url
+          - $method
+          - $userAgent
+
+
+  - name: fluentbit-metrics
+    spec:
+      match: fluentbit.metrics
+      prometheusExporter:
+        host: 0.0.0.0
+        port: 2020
+        addLabels:
+          app: fluentbit
+          release: prometheus
+
+serviceMonitor:
+  labels:
+    ${prometheus_labels}
