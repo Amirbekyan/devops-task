@@ -2,9 +2,7 @@ apiVersion: v2
 name: fluentbit
 description: A Helm chart for FluentBit CRs
 maintainers:
-- name: Karen Danielyan
-  email: kar.danielyan@gmail.com
-- name: Radagast The Brown
-  email: radagast@cloudwizz.org
+- name: Moushegh Amirbekyan
+  email: mousheghamirbekyan@gmail.com
 type: application
 version: 0.1.0
