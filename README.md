@@ -36,3 +36,10 @@ ansible-playbook -i localhost src/ansible-requirements.yml
 tofu init
 tofu apply
 ```
+
+6. 
+```
+ansible-playbook -i localhost src/ansible-docker-build.yml
+```
+
+7. add to `/etc/hosts`

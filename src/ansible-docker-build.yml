@@ -4,14 +4,14 @@
   tasks:
     - name: copy index.html for alpha
       copy:
-        src: app/index-alpha.html
-        dest: app/index.html
+        src: ../app/index-alpha.html
+        dest: ../app/index.html
         mode: '0644'
       
     - name: build devops-task:alpha
       community.docker.docker_image:
         build:
-          path: app
+          path: ../app
         name: devops-task
         tag: alpha
         source: build
@@ -19,14 +19,14 @@
 
     - name: copy index.html for bravo
       copy:
-        src: app/index-bravo.html
-        dest: app/index.html
+        src: ../app/index-bravo.html
+        dest: ../app/index.html
         mode: '0644'
         
     - name: build devops-task:bravo
       community.docker.docker_image:
         build:
-          path: app
+          path: ../app
         name: app
         tag: bravo
         source: build
