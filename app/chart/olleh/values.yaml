@@ -15,7 +15,7 @@ image:
 
 env:
   - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: http://tempo:4317/
+    value: http://tempo.prometheus:4317/
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: grpc
   - name: OTEL_SERVICE_NAME
