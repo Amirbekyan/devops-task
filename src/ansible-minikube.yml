@@ -212,19 +212,24 @@
         dest: /usr/local/bin/minikube
         mode: 0755
 
+    - name: remove illicit config
+      file:
+        path: /etc/containerd/config.toml
+        state: absent
+
     - name: start minikube cluster
       shell:
-        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --addons=storage-provisioner --cni=false --network-plugin=cni
+        cmd: minikube start --driver=none --container-runtime=containerd --addons=metrics-server --addons=default-storageclass --addons=storage-provisioner --cni=calico # --network-plugin=cni
 
-    ## install calico cni
-    - name: get latest version tag for calico
-      shell:
-        cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
-      register: calico_version
+    # ## install calico cni
+    # - name: get latest version tag for calico
+    #   shell:
+    #     cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
+    #   register: calico_version
 
-    - name: install calico typha
-      shell:
-        cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version.stdout }}/manifests/calico-typha.yaml
+    # - name: install calico typha
+    #   shell:
+    #     cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version.stdout }}/manifests/calico-typha.yaml
 
   handlers:
     - name: enable now cri-o

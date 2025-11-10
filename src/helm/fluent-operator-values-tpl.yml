@@ -88,7 +88,8 @@ fluentbit:
   disableLogVolumes: false
 
 fluentd:
-  crdsEnable: false
+  # the operator fails if the crds are missing
+  crdsEnable: true
   enable: false
 
 nameOverride: ""

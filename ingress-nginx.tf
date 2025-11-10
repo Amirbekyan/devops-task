@@ -86,8 +86,8 @@ locals {
         basic_auth = null
       }
     }
-    # otlp_collector_host = "opentelemetry-collector.opentelemetry"
-    # otlp_collector_port = 4317
+    otlp_collector_host = "tempo.prometheus"
+    otlp_collector_port = 4317
   }
 }
 
@@ -95,6 +95,8 @@ resource "kubernetes_namespace" "ingress_nginx" {
   metadata {
     name = local.ingress_nginx.namespace_name
   }
+
+  depends_on = [helm_release.prometheus]
 }
 
 resource "helm_release" "ingress_nginx" {
@@ -124,16 +126,16 @@ resource "helm_release" "ingress_nginx" {
       annotation_validation      = false
       snippet_annotation         = true
       config = indent(4, yamlencode({
-        annotations-risk-level = "Critical"
-        # enable-opentelemetry              = "true"
-        # opentelemetry-operation-name      = "HTTP $request_method $service_name $uri"
-        # opentelemetry-trust-incoming-span = "true"
-        # otel-sampler                      = "AlwaysOn"
-        # otel-sampler-ratio                = "1.0"
-        # otel-service-name                 = "ingress-nginx"
-        # otlp-collector-host               = local.ingress_nginx.otlp_collector_host
-        # otlp-collector-port               = local.ingress_nginx.otlp_collector_port
-        log-format-escape-json = "true"
+        annotations-risk-level            = "Critical"
+        enable-opentelemetry              = "true"
+        opentelemetry-operation-name      = "HTTP $request_method $service_name $uri"
+        opentelemetry-trust-incoming-span = "true"
+        otel-sampler                      = "AlwaysOn"
+        otel-sampler-ratio                = "1.0"
+        otel-service-name                 = "ingress-nginx"
+        otlp-collector-host               = local.ingress_nginx.otlp_collector_host
+        otlp-collector-port               = local.ingress_nginx.otlp_collector_port
+        log-format-escape-json            = "true"
         log-format-upstream = jsonencode({
           remote_addr                     = "$remote_addr"
           remote_user                     = "$remote_user"
@@ -159,9 +161,9 @@ resource "helm_release" "ingress_nginx" {
           # time                            = "$time_iso8601"
           # bytes_sent                      = "$bytes_sent"
           ## the below keys are matched with apps logs keys
-          method = "$request_method"
-          # trace_id  = "$opentelemetry_trace_id"
-          # span_id   = "$opentelemetry_span_id"
+          method    = "$request_method"
+          trace_id  = "$opentelemetry_trace_id"
+          span_id   = "$opentelemetry_span_id"
           url       = "$uri"
           userAgent = "$http_user_agent"
           status    = "$status"

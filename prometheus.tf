@@ -14,7 +14,7 @@ locals {
     prometheus_external_url          = "http://prometheus.devops-task"
     prometheus_enable_remote_write   = true
     prometheus_retention             = "10d"
-    prometheus_pv_size               = "40Gi"
+    prometheus_pv_size               = "20Gi"
     prometheus_sa_annotations        = indent(4, yamlencode({}))
     prometheus_alertmanager_scheme   = "http"
     prometheus_alertmanager_endpoint = "prometheus-alertmanager:9093"
@@ -89,6 +89,8 @@ resource "kubernetes_namespace" "prometheus" {
   metadata {
     name = local.prometheus.namespace_name
   }
+
+  depends_on = [null_resource.minikube]
 }
 
 resource "helm_release" "prometheus" {
@@ -333,7 +335,7 @@ resource "helm_release" "loki" {
   name       = "loki"
   chart      = "loki"
   repository = "https://grafana.github.io/helm-charts"
-  namespace  = kubernetes_namespace.prometheus.id
+  namespace  = helm_release.prometheus.namespace
   version    = "5.36.3"
 
   values = [
@@ -346,6 +348,31 @@ resource "helm_release" "loki" {
       storage_type       = "filesystem"
       prometheus_address = "http://prometheus:9090"
       grafana_folder     = "Loki"
+    })
+  ]
+}
+
+resource "helm_release" "tempo" {
+  name       = "tempo"
+  chart      = "tempo"
+  repository = "https://grafana.github.io/helm-charts"
+  namespace  = helm_release.prometheus.namespace
+  version    = "1.23.2"
+
+  values = [
+    templatefile("${path.module}/src/helm/tempo-values-tpl.yml", {
+      storage_type       = "local"
+      persistence        = true
+      persistence_size   = "20Gi"
+      storage_class      = "standard"
+      prometheus_enabled = true
+      prometheus_labels = indent(4, yamlencode({
+        release = "prometheus"
+      }))
+      metrics_generator_enabled = true
+      metrics_remote_write_url  = "http://prometheus-prometheus.prometheus:9090/api/v1/write"
+      multitenancy_enabled      = false
+      tempo_query               = true
     })
   ]
 }

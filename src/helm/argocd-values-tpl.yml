@@ -3319,16 +3319,10 @@ notifications:
     ## Can be used for templates, notification services etc. Some examples given below.
     ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/overview/
     items:
-      # slack-token: {slack_oauth_token}
-      #   # For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/slack/
-
-      # alertmanager-user: basic-auth-user
-      # alertmanager-pass: basicauthpass
-
       # grafana-apiKey:
       #   # For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/grafana/
 
-      webhook-token: ${webhook_token}
+      webhook-url: ${webhook_url}
 
       # email-username:
       # email-password:
@@ -3379,24 +3373,11 @@ notifications:
   # @default -- See [values.yaml]
   ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/services/overview/
   notifiers:
-    # service.slack: |
-    #   token: $slack-token
-    #  channels:
-    #    - {slack_channel}
-
     service.webhook.site: |
-      url: $webhook-token
+      url: $webhook-url
       headers:
         - name: Content-Type
           value: application/json
-
-    # service.alertmanager: |
-    #   targets:
-    #     - prometheus-alertmanager.prometheus
-    #   scheme: http
-    #   basicAuth:
-    #     username: $alertmanager-user
-    #     password: $alertmanager-pass
 
   # -- Annotations to be applied to the notifications controller Deployment
   deploymentAnnotations: {}
@@ -3529,9 +3510,6 @@ notifications:
   ## For more information: https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/subscriptions/
   subscriptions:
     - recipients:
-        # - slack:{slack_channel}
-        # - alertmanager
-        # - email:test@gmail.com
         - site
       triggers:
         - on-created
@@ -3726,18 +3704,6 @@ notifications:
     #   message: |
     #     The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.
     #     Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
-    #   alertmanager:
-    #     labels:
-    #       alertname: AppCreated
-    #       namespace: "{{.app.spec.destination.namespace}}"
-    #       severity: info
-    #       cluster: "{{.context.cluster}}"
-    #     annotations:
-    #       summary: "Application *{{.app.metadata.name}}* has been created."
-    #       description: |
-    #         {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
-    #         Status: *{{.app.status.sync.status}}* Health: *{{.app.status.health.status}}* Revision: {{.app.status.sync.revision}}
-    #     generatorURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}"
     #   slack:
     #     attachments: |-
     #       [{

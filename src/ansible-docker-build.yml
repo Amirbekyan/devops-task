@@ -1,0 +1,37 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    - name: copy index.html for alpha
+      copy:
+        src: app/index-alpha.html
+        dest: app/index.html
+        mode: '0644'
+      
+    - name: build devops-task:alpha
+      community.docker.docker_image:
+        build:
+          path: app
+        name: devops-task
+        tag: alpha
+        source: build
+        force_source: yes
+
+    - name: copy index.html for bravo
+      copy:
+        src: app/index-bravo.html
+        dest: app/index.html
+        mode: '0644'
+        
+    - name: build devops-task:bravo
+      community.docker.docker_image:
+        build:
+          path: app
+        name: app
+        tag: bravo
+        source: build
+        force_source: yes
+
+    - name: load images to minikube
+      shell:
+        cmd: minikube image load devops-task:alpha devops-task:bravo

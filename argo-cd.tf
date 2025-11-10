@@ -32,9 +32,8 @@ locals {
     }
     env                   = "devops-task"
     notifications_enabled = true
-    # slack_channel         = "var.argocd_notifications.channel"
-    # slack_oauth_token     = "var.argocd_notifications.oauth_token"
-    prometheus_enabled = true
+    webhook_url           = var.webhook_url.mgmt
+    prometheus_enabled    = true
   }
 }
 
@@ -42,6 +41,8 @@ resource "kubernetes_namespace" "argocd" {
   metadata {
     name = local.argocd.namespace_name
   }
+
+  depends_on = [helm_release.ingress_nginx]
 }
 
 resource "helm_release" "argocd" {
@@ -60,10 +61,8 @@ resource "helm_release" "argocd" {
       redis_exporter        = local.argocd.redis_exporter
       env                   = local.argocd.env
       notifications_enabled = local.argocd.notifications_enabled
-      # slack_channel         = local.argocd.slack_channel
-      # slack_oauth_token     = local.argocd.slack_oauth_token
-      webhook_token      = var.webhook_url.mgmt
-      prometheus_enabled = local.argocd.prometheus_enabled
+      webhook_url           = local.argocd.webhook_url
+      prometheus_enabled    = local.argocd.prometheus_enabled
       prometheus_labels = indent(8, yamlencode({
         release = "prometheus"
       }))

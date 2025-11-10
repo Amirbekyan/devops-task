@@ -70,14 +70,6 @@ clusterfilters:
     spec:
       match: kube.ingress-nginx*controller
       filters:
-        # - parser:
-        #     keyName: message
-        #     parser: kong
-        #     reserveData: true
-        # - parser:
-        #     keyName: message
-        #     parser: nginx
-        #     reserveData: true
         - parser:
             keyName: message
             parser: json
@@ -92,25 +84,12 @@ clusterfilters:
             keyName: message
             parser: docker
             reserveData: true
-          rewriteTag:
-            rules:
-            - $level ^debug$ drop false
-            # $key REGEX new_tag KEEP
 
 clusterparsers:
   - name: k8s-custom-tag
     spec:
       regex:
         regex: (?<namespace_name>[^.]+)\.(?<pod_name>[^.]+)\.(?<container_name>[^.]+)
-
-  # - name: kong
-  #   spec:
-  #     regex:
-  #       regex: '^(?<host>[^ ]*) (?<remote>[^ ]*) - (?<user>[^ ]*) \[(?<apptime>[^\]]*)\]
-  #         "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^
-  #         ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")'
-  #       timeFormat: '%d/%b/%Y:%H:%M:%S %z'
-  #       timeKey: apptime
 
 clusteroutputs:
   - name: loki

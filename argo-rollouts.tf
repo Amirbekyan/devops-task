@@ -14,6 +14,8 @@ resource "kubernetes_namespace" "argo_rollouts" {
   metadata {
     name = local.argo_rollouts.namespace_name
   }
+
+  depends_on = [helm_release.argocd]
 }
 
 resource "helm_release" "argo_rollouts" {

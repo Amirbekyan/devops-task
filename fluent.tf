@@ -7,14 +7,13 @@ locals {
     fluentbit_values_tpl       = "${path.module}/src/helm/fluentbit-values-tpl.yml"
     cluster_name               = "devops-task"
     excludes = [
-      # "/var/log/containers/*_fluent_*.log",
-      # "/var/log/containers/*_argocd_*.log",
-      # "/var/log/containers/*_prometheus_*.log",
-      # "/var/log/containers/*_kube-system_*.log",
-      # "/var/log/containers/*_kube-node-lease_*.log",
-      # "/var/log/containers/*_kube-public_*.log",
-      # "/var/log/containers/*_metrics-server_*.log",
-      # "/var/log/containers/*_opentelemetry_*.log",
+      "/var/log/containers/*_fluent_*.log",
+      "/var/log/containers/*_argocd_*.log",
+      "/var/log/containers/*_prometheus_*.log",
+      "/var/log/containers/*_kube-system_*.log",
+      "/var/log/containers/*_kube-node-lease_*.log",
+      "/var/log/containers/*_kube-public_*.log",
+      "/var/log/containers/*_metrics-server_*.log",
     ]
     loki_host = "loki.prometheus"
     loki_port = 3100
@@ -25,6 +24,7 @@ resource "kubernetes_namespace" "fluent" {
   metadata {
     name = local.fluent.namespace_name
   }
+  depends_on = [helm_release.prometheus]
 }
 
 resource "helm_release" "fluent_operator" {
