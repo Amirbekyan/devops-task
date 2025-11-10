@@ -15,11 +15,13 @@ image:
 
 env:
   - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: http://tempo.prometheus:4317/
+    value: http://tempo.prometheus:4317
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: grpc
   - name: OTEL_SERVICE_NAME
     value: olleh
+  - name: OTEL_TRACE
+    value: on
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
