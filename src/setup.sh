@@ -4,7 +4,7 @@ set -e
 set -o errtrace
 set -o pipefail
 
-[[ $EUID -eq 0 ]] || { echo "this script requires root privileges"; exit 1 }
+[[ $EUID -eq 0 ]] || { echo "this script requires root privileges"; exit 1; }
 
 apt update && apt upgrade -y
 apt install -y git ansible
