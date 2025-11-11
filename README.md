@@ -164,5 +164,6 @@ After full promotion, the new version will be available under http://hello.devop
 ![bravo](/docs/img/bravo.png)
 
 
-### Regrets
-Initially I planned to setup Argo Events and Argo Workflows to build the sample app images continuously on the Minikube itself.  Unfortunately I was short in time due to my travel to USA to attend KubeCon & CloudNativeCon NA 2025.  I had no other choice than to imitate the CI with an ansible playbook.  Peachy greetings from Atlanta :). 
+### Note
+
+Initially I planned to setup Argo Events and Argo Workflows to build the sample app images continuously on the Minikube itself.  Unfortunately I was short in time due to my travel to US to attend KubeCon & CloudNativeCon NA 2025.  So I decided to mock the CI part with an Ansible playbook instead.  Peachy greetings from Atlanta 🍑🙂. 

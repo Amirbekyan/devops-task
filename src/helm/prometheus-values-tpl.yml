@@ -2968,10 +2968,7 @@ prometheusOperator:
         requests:
           cpu: 10m
           memory: 75Mi
-      # [amir]
-      # the default limit of cpu is also 10m which is not sufficient
-      # to bring lots of rules up at once so we need to set a higher limit
-
+          
       ## Provide a priority class name to the webhook patching job
       ##
       priorityClassName: ""
