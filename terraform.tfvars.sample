@@ -1,6 +1,6 @@
 github = {
-  user = "github-user"
-  pat  = "ghp_yORG17H0BPr1vAT3a66355T0kNIn5tD0FD15"
+  user = ""
+  pat  = ""
 }
 
 webhook_url = {
