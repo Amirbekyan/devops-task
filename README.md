@@ -7,7 +7,7 @@ The below instructions are compatibe with and tested on Debian 13.
 Use the automated setup script or proceed with manual setup described below:
 
 ```
-curl -sL https://raw.githubusercontent.com/Amirbekyan/devops-task/refs/heads/main/src/setup.sh | bash
+curl -sL https://raw.githubusercontent.com/Amirbekyan/devops-task/refs/heads/main/src/setup.sh | sudo bash
 ```
 
 #### Manual setup
@@ -84,7 +84,7 @@ Here are the endpoints we've setup so far:
   ArgoCD will send alerts to the same channels as Alert Manager in case of application creation, updates, degradation, deletion and sync issues.
 
 * [Sample App](http://hello.devops-task:32080/)
-  [Sample App new version preview](http://preview.hello.devops-task:32080/)
+* [Sample App new version preview](http://preview.hello.devops-task:32080/)
   Sample App current (and preview - in case of Rollout) home pages
 
 
@@ -110,7 +110,7 @@ project: default
 source:
   repoURL: https://github.com/amirbekyan/devops-task.git
   path: app/chart/olleh
-  targetRevision: amir.prometheus
+  targetRevision: HEAD
   helm:
     parameters:
       - name: replicaCount
@@ -164,5 +164,6 @@ After full promotion, the new version will be available under http://hello.devop
 ![bravo](/docs/img/bravo.png)
 
 
-### Regrets
-Initially I planned to setup Argo Events and Argo Workflows to build the sample app images continuously on the Minikube itself.  Unfortunately I was short in time due to my travel to USA to attend KubeCon & CloudNativeCon NA 2025.  I had no other choice than to imitate the CI with an ansible playbook.  Peachy greetings from Atlanta :). 
+### Note
+
+Initially I planned to setup Argo Events and Argo Workflows to build the sample app images continuously on the Minikube itself.  Unfortunately I was short in time due to my travel to US to attend KubeCon & CloudNativeCon NA 2025.  So I decided to mock the CI part with an Ansible playbook instead.  Peachy greetings from Atlanta 🍑🙂. 

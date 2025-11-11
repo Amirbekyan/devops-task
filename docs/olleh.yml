@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: olleh
+spec:
+  destination:
+    namespace: olleh
+    server: https://kubernetes.default.svc
+  source:
+    path: app/chart/olleh
+    repoURL: https://github.com/amirbekyan/devops-task.git
+    targetRevision: HEAD
+    helm:
+      parameters:
+        - name: replicaCount
+          value: '3'
+        - name: ingress.enabled
+          value: 'true'
+        - name: rollout.enabled
+          value: 'true'
+        - name: image.tag
+          value: alpha
+  sources: []
+  project: default
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
