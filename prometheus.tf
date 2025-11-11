@@ -90,8 +90,6 @@ resource "kubernetes_namespace" "prometheus" {
   metadata {
     name = local.prometheus.namespace_name
   }
-
-  depends_on = [null_resource.wait_for_minikube]
 }
 
 resource "helm_release" "prometheus" {
