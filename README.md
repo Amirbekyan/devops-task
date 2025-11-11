@@ -3,31 +3,30 @@ DevOps Engineer Task
 
 ### Setup Instructions
 
-1. SSH key in github
-
-2. Install `git` and `ansible`
+1. Install `git` and `ansible`
 ```
 apt update && apt upgrade -y
 apt install -y git ansible
 ```
 
-3. Clone this repo:
+2. Clone this repo:
 ```
-git clone git@github.com:Amirbekyan/devops-task.git
+git clone https://github.com/Amirbekyan/devops-task.git
 cd devops-task
 ```
 
-4. Install prerequisites:
+3. Install prerequisites:
 ```
 ansible-playbook -i localhost src/ansible-requirements.yml
 ```
 
-5. Run Terraform code:
+4. Run Terraform code:
 >[!IMPORTANT]
 > Copy `terraform.tfvars.sample` to `terraform-tfvars` and update values with real ones before applying the code.
 
 >[!TIP]
 > [Webhook.site](https://webhook.site/) can be used to generate temporary webhook URLs for testing.
+> GitHub credentials are optional for this repo as it's public.
 
 ```
 tofu init

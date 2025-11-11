@@ -6,7 +6,7 @@ resource "null_resource" "minikube" {
 
 resource "null_resource" "wait_for_minikube" {
   provisioner "local-exec" {
-    command = "until kubectl cluster-info > /dev/null 2>&1; do echo 'Waiting for minikube...'; sleep 5; done"
+    command = "until kubectl get ns > /dev/null 2>&1; do echo 'Waiting for minikube...'; sleep 5; done"
   }
   depends_on = [null_resource.minikube]
 }
