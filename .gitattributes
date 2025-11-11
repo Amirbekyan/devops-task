@@ -1,2 +1,0 @@
-**/*.tfvars filter=git-crypt diff=git-crypt
-sec/** filter=git-crypt diff=git-crypt

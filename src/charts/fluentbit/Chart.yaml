@@ -1,0 +1,8 @@
+apiVersion: v2
+name: fluentbit
+description: A Helm chart for FluentBit CRs
+maintainers:
+- name: Moushegh Amirbekyan
+  email: mousheghamirbekyan@gmail.com
+type: application
+version: 0.1.0

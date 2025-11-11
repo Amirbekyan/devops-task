@@ -1,0 +1,21 @@
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: FluentBit
+metadata:
+  labels:
+    {{- include "fluentbit.labels" . | nindent 4 }}
+  name: fluentbit
+spec:
+  annotations:
+    fluentbit.io/exclude: "true"
+  fluentBitConfigName: fluentbit-config
+  image: {{ .Values.fluentbit.version }}
+  namespaceFluentBitCfgSelector: {}
+  positionDB:
+    hostPath:
+      path: /var/lib/fluent-bit/
+  resources:
+    {{- toYaml .Values.fluentbit.resources | nindent 4 }}
+  service: {}
+  tolerations:
+  - operator: Exists
+status: {}

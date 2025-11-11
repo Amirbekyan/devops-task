@@ -1,0 +1,97 @@
+containerRuntime: containerd
+Kubernetes: true
+
+operator:
+  initcontainer:
+    repository: "docker"
+    tag: "20.10"
+    resources:
+      limits:
+        cpu: 100m
+        memory: 64Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  container:
+    repository: "kubesphere/fluent-operator"
+    tag: ${version}
+  nodeSelector: {}
+  tolerations: []
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  annotations: {}
+  imagePullSecrets: []
+  labels: {}
+  logPath:
+    containerd: /var/log
+  disableComponentControllers: ""
+  extraArgs: []
+    # - --watch-namespaces=logging
+
+fluentbit:
+  crdsEnable: true
+  enable: false
+
+  serviceAccountAnnotations: {}
+
+  secrets: []
+  nodeSelector: {}
+  tolerations:
+    - operator: Exists
+  envVars: []
+  schedulerName: ""
+
+  namespaceFluentBitCfgSelector: {}
+
+  input:
+    tail:
+      enable: false
+    systemd:
+      enable: false
+    nodeExporterMetrics: {}
+    fluentBitMetrics: {}
+
+  output:
+    stdout:
+      enable: false
+    loki:
+      enable: false
+
+  service:
+    storage: {}
+
+  filter:
+    multiline:
+      enable: false
+    kubernetes:
+      enable: false
+    containerd:
+      enable: false
+    systemd:
+      enable: false
+
+  kubeedge:
+    enable: false
+    prometheusRemoteWrite:
+      host: "<cloud-prometheus-service-host>"
+      port: "<cloud-prometheus-service-port>"
+
+  parsers:
+    javaMultiline:
+      enable: false
+
+  disableLogVolumes: false
+
+fluentd:
+  # the operator fails if the crds are missing
+  crdsEnable: true
+  enable: false
+
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""

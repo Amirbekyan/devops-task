@@ -57,6 +57,11 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          env:
+          {{- range .Values.env }}
+            - name: "{{ .name }}"
+              value: "{{ .value }}"
+          {{- end }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- . | nindent 12 }}

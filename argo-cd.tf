@@ -10,17 +10,17 @@ locals {
       # helm-charts = {
       #   type = "helm"
       #   name = "helm-charts"
-      #   url  = "https://raw.githubusercontent.com/deeporiginbio/helm-charts/gh-pages"
+      #   url  = "https://raw.githubusercontent.com/amirbekyan/helm-charts/gh-pages"
       #   # enableOCI = "false"
-      #   username = "formiclabs-ci-bot"
-      #   password = var.formiclabs_ci_bot_github_pat
+      #   username = var.github.user
+      #   password = var.github.pat
       # }
       # gitops = {
       #   type     = "git"
       #   name     = "gitops"
-      #   url      = "https://github.com/deeporiginbio/gitops.git"
-      #   username = "formiclabs-ci-bot"
-      #   password = var.formiclabs_ci_bot_github_pat
+      #   url      = "https://github.com/amirbekyan/gitops.git"
+      #   username = var.github.user
+      #   password = var.github.pat
       # }
       git = {
         type     = "git"
@@ -31,10 +31,9 @@ locals {
       }
     }
     env                   = "devops-task"
-    notifications_enabled = false
-    slack_channel         = "var.argocd_notifications.channel"
-    slack_oauth_token     = "var.argocd_notifications.oauth_token"
-    prometheus_enabled    = false
+    notifications_enabled = true
+    webhook_url           = var.webhook_url.mgmt
+    prometheus_enabled    = true
   }
 }
 
@@ -42,6 +41,8 @@ resource "kubernetes_namespace" "argocd" {
   metadata {
     name = local.argocd.namespace_name
   }
+
+  depends_on = [helm_release.ingress_nginx]
 }
 
 resource "helm_release" "argocd" {
@@ -60,8 +61,7 @@ resource "helm_release" "argocd" {
       redis_exporter        = local.argocd.redis_exporter
       env                   = local.argocd.env
       notifications_enabled = local.argocd.notifications_enabled
-      slack_channel         = local.argocd.slack_channel
-      slack_oauth_token     = local.argocd.slack_oauth_token
+      webhook_url           = local.argocd.webhook_url
       prometheus_enabled    = local.argocd.prometheus_enabled
       prometheus_labels = indent(8, yamlencode({
         release = "prometheus"

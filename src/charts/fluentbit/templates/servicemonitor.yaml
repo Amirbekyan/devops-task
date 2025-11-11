@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fluentbit
+  labels:
+    {{- include "fluentbit.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+  - interval: 30s
+    scrapeTimeout: 30s
+    targetPort: 2020
+    path: /api/v1/metrics/prometheus
+    scheme: http
+  jobLabel: fluentbit
+  selector:
+    matchLabels:
+      {{- include "fluentbit.labels" . | nindent 6 }}

@@ -1,0 +1,12 @@
+{{- range .Values.clusterfilters }}
+apiVersion: fluentbit.fluent.io/v1alpha2
+kind: ClusterFilter
+metadata:
+  labels:
+    {{- include "fluentbit.labels" $ | nindent 4 }}
+    {{- toYaml $.Values.fluentbit.matchLabels | nindent 4 }}
+  name: {{ .name }}
+spec:
+  {{- toYaml .spec | nindent 2 }}
+---
+{{- end }}

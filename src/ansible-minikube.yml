@@ -2,21 +2,55 @@
 - hosts: localhost
   become: true
   tasks:
-    # - name: install requirements
-    #   apt:
-    #     name: [
-    #       'apparmor',
-    #       'apparmor-profiles',
-    #       'conntrack',
-    #     ]
-    #     state: present
-    #     update_cache: true
+    - name: install requirements
+      apt:
+        name: [
+          'apt-transport-https',
+          'ca-certificates',
+          'curl',
+          'gnupg'
+        ]
+        state: present
+        update_cache: true
 
     - name: create /usr/share/keyrings dir
       file:
         path: /usr/share/keyrings
         state: directory
         mode: '0755'
+      
+    ## opentofu apt repo
+    - name: download opentofu gpg key
+      get_url:
+        url: https://get.opentofu.org/opentofu.gpg
+        dest: /usr/share/keyrings/opentofu.gpg
+        mode: '0644'
+        # force: yes
+            
+    - name: download and dearmor opentofu repo gpg key
+      shell:
+        cmd: curl -fsSL https://packages.opentofu.org/opentofu/tofu/gpgkey | gpg --no-tty --batch --dearmor -o /usr/share/keyrings/opentofu-repo.gpg
+      args:
+        creates: /usr/share/keyrings/opentofu-repo.gpg
+      
+    - name: chmod dearmored opentofu gpg key
+      file:
+        path: /usr/share/keyrings/opentofu-repo.gpg
+        mode: '0644'
+        state: file
+      
+    - name: add opentofu repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/opentofu.gpg,/usr/share/keyrings/opentofu-repo.gpg] https://packages.opentofu.org/opentofu/tofu/any/ any main'
+        state: present
+
+    - name: install opentofu
+      apt:
+        name: [
+          'tofu'
+        ]
+        state: present
+        update_cache: true
       
     ## docker apt repo
     - name: download and dearmor docker repo gpg key
@@ -205,26 +239,22 @@
         dest: /usr/local/bin/argocd
         mode: 0755
 
-    ## install minikube
+    ## setup minikube
     - name: install minikube
       get_url:
         url: https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
         dest: /usr/local/bin/minikube
         mode: 0755
 
+    - name: remove illicit config
+      copy:
+        dest: /etc/containerd/config.toml
+        content: ""
+        mode: 0644
+
     - name: start minikube cluster
       shell:
-        cmd: minikube start --driver=none --addons=metrics-server --addons=default-storageclass --cni=false --network-plugin=cni
-
-    ## install calico cni
-    - name: get latest version tag for calico
-      shell:
-        cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
-      register: calico_version
-
-    - name: install calico typha
-      shell:
-        cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version.stdout }}/manifests/calico-typha.yaml
+        cmd: minikube start --driver=none --container-runtime=containerd --addons=metrics-server --addons=default-storageclass --addons=storage-provisioner --cni=calico # --network-plugin=cni
 
   handlers:
     - name: enable now cri-o

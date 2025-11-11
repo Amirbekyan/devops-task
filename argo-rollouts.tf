@@ -6,7 +6,7 @@ locals {
     notifications_enabled = false
     slack_channel         = "var.argocd_notifications.channel"
     slack_oauth_token     = "var.argocd_notifications.oauth_token"
-    prometheus_enabled    = false
+    prometheus_enabled    = true
   }
 }
 
@@ -14,6 +14,8 @@ resource "kubernetes_namespace" "argo_rollouts" {
   metadata {
     name = local.argo_rollouts.namespace_name
   }
+
+  depends_on = [helm_release.argocd]
 }
 
 resource "helm_release" "argo_rollouts" {

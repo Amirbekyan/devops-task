@@ -45,28 +45,44 @@ locals {
     tcp_services = {
       # "10901" = "prometheus/prometheus-thanos-discovery:10901"
     }
-    basic_auth = {
-      # prometheus = {
-      #   auth      = tolist([var.basic_auth.grafana])
-      #   namespace = module.prometheus_platform.prometheus_namespace_id
-      # }
-    }
+    ingresses_values_tpl = "${path.module}/src/helm/ingresses-values-tpl.yml"
     ingresses = {
-      # prometheus = {
-      #   namespace = module.prometheus_worker_us.prometheus_namespace_id
-      #   annotations = {
-      #     "cert-manager.io/cluster-issuer"                   = "letsencrypt-production"
-      #     "nginx.ingress.kubernetes.io/enable-opentelemetry" = true
-      #   }
-      #   host       = "prometheus.worker.us.staging.deeporigin.io"
-      #   backend    = "prometheus-kube-prometheus-prometheus"
-      #   port       = "9090"
-      #   tls        = true
-      #   basic_auth = "prometheus"
-      # }
+      grafana = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = "false"
+        }
+        host       = "grafana.devops-task"
+        backend    = "grafana"
+        port       = "80"
+        tls        = false
+        basic_auth = null
+      }
+      prometheus = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = "false"
+        }
+        host       = "prometheus.devops-task"
+        backend    = "prometheus-prometheus"
+        port       = "9090"
+        tls        = false
+        basic_auth = null
+      }
+      alert = {
+        namespace = kubernetes_namespace.prometheus.id
+        annotations = {
+          "nginx.ingress.kubernetes.io/enable-opentelemetry" = "false"
+        }
+        host       = "alert.devops-task"
+        backend    = "prometheus-alertmanager"
+        port       = "9093"
+        tls        = false
+        basic_auth = null
+      }
     }
-    # otlp_collector_host = "opentelemetry-collector.opentelemetry"
-    # otlp_collector_port = 4317
+    otlp_collector_host = "tempo.prometheus"
+    otlp_collector_port = 4317
   }
 }
 
@@ -74,6 +90,8 @@ resource "kubernetes_namespace" "ingress_nginx" {
   metadata {
     name = local.ingress_nginx.namespace_name
   }
+
+  depends_on = [helm_release.prometheus]
 }
 
 resource "helm_release" "ingress_nginx" {
@@ -103,16 +121,16 @@ resource "helm_release" "ingress_nginx" {
       annotation_validation      = false
       snippet_annotation         = true
       config = indent(4, yamlencode({
-        annotations-risk-level = "Critical"
-        # enable-opentelemetry              = "true"
-        # opentelemetry-operation-name      = "HTTP $request_method $service_name $uri"
-        # opentelemetry-trust-incoming-span = "true"
-        # otel-sampler                      = "AlwaysOn"
-        # otel-sampler-ratio                = "1.0"
-        # otel-service-name                 = "ingress-nginx"
-        # otlp-collector-host               = local.ingress_nginx.otlp_collector_host
-        # otlp-collector-port               = local.ingress_nginx.otlp_collector_port
-        log-format-escape-json = "true"
+        annotations-risk-level            = "Critical"
+        enable-opentelemetry              = "true"
+        opentelemetry-operation-name      = "HTTP $request_method $service_name $uri"
+        opentelemetry-trust-incoming-span = "true"
+        otel-sampler                      = "AlwaysOn"
+        otel-sampler-ratio                = "1.0"
+        otel-service-name                 = "ingress-nginx"
+        otlp-collector-host               = local.ingress_nginx.otlp_collector_host
+        otlp-collector-port               = local.ingress_nginx.otlp_collector_port
+        log-format-escape-json            = "true"
         log-format-upstream = jsonencode({
           remote_addr                     = "$remote_addr"
           remote_user                     = "$remote_user"
@@ -134,18 +152,14 @@ resource "helm_release" "ingress_nginx" {
           args                            = "$args"
           request_uri                     = "$request_uri"
           service_name                    = "$service_name"
-          # remote_addr                     = "$proxy_protocol_addr"
-          # time                            = "$time_iso8601"
-          # bytes_sent                      = "$bytes_sent"
-          ## the below keys are matched with deeporigin apps logs keys
-          method = "$request_method"
-          # trace_id  = "$opentelemetry_trace_id"
-          # span_id   = "$opentelemetry_span_id"
-          url       = "$uri"
-          userAgent = "$http_user_agent"
-          status    = "$status"
-          host      = "$host"
-          app       = "ingress-nginx"
+          method                          = "$request_method"
+          trace_id                        = "$opentelemetry_trace_id"
+          span_id                         = "$opentelemetry_span_id"
+          url                             = "$uri"
+          userAgent                       = "$http_user_agent"
+          status                          = "$status"
+          host                            = "$host"
+          app                             = "ingress-nginx"
         })
         http-snippet = join("\n",
           [
@@ -174,7 +188,7 @@ resource "helm_release" "ingress_nginx" {
       }))
       tcp_services = indent(2, yamlencode(local.ingress_nginx.tcp_services))
       # prometheus_enabled = true
-      prometheus_enabled = false
+      prometheus_enabled = true
       prometheus_labels = indent(8, yamlencode({
         release = "prometheus"
       }))
@@ -182,61 +196,37 @@ resource "helm_release" "ingress_nginx" {
   ]
 }
 
-resource "kubernetes_secret" "basic_auth" {
-  for_each = local.ingress_nginx.basic_auth
-  metadata {
-    name      = "basic-auth-${each.key}"
-    namespace = each.value.namespace
-  }
-  data = {
-    auth = join("\n", [
-      for cred in each.value.auth : "${cred.user}:${bcrypt(cred.pass)}"
-    ])
-  }
-}
+resource "helm_release" "ingresses" {
+  name      = "ingresses"
+  chart     = "${path.module}/src/charts/ingresses"
+  namespace = helm_release.ingress_nginx.namespace
 
-resource "kubernetes_manifest" "ingress" {
-  for_each = local.ingress_nginx.ingresses
-  manifest = {
-    "apiVersion" = "networking.k8s.io/v1"
-    "kind"       = "Ingress"
-    "metadata" = {
-      "name"      = each.key
-      "namespace" = each.value.namespace
-      "annotations" = merge(
-        each.value.annotations,
+  values = [
+    templatefile(local.ingress_nginx.ingresses_values_tpl, {
+      ingresses = indent(2, yamlencode([
+        for ingress, param in local.ingress_nginx.ingresses :
         {
-          "kubernetes.io/ingress.class" = "nginx"
-        },
-        each.value.basic_auth != null ? {
-          "nginx.ingress.kubernetes.io/auth-type"   = "basic"
-          "nginx.ingress.kubernetes.io/auth-secret" = kubernetes_secret.basic_auth[each.value.basic_auth].metadata[0].name
-          "nginx.ingress.kubernetes.io/auth-realm"  = "DeepOrigin"
-        } : {}
-      )
-    }
-    "spec" = {
-      "tls" = try(each.value.tls, true) ? [{
-        "secretName" = "${each.key}-tls"
-        "hosts"      = [each.value.host]
-      }] : null
-      "rules" = [{
-        "host" = each.value.host
-        "http" = {
-          "paths" = concat([{
-            "path"     = "/"
-            "pathType" = "ImplementationSpecific"
-            "backend" = {
-              "service" = {
-                "name" = each.value.backend
-                "port" = {
-                  "number" = each.value.port
-                }
-              }
+          name        = ingress
+          namespace   = param.namespace
+          className   = "nginx"
+          annotations = param.annotations
+          hosts = [
+            {
+              host = param.host
+              paths = concat([{
+                "path"     = "/"
+                "pathType" = "ImplementationSpecific"
+                "backend"  = param.backend
+                "port"     = param.port
+              }], try(param.additional_paths, []))
             }
-          }], try(each.value.additional_paths, []))
+          ]
+          tls = try(param.tls, true) ? [{
+            secretName = "${ingress}-tls"
+            hosts      = [param.host]
+          }] : []
         }
-      }]
-    }
-  }
+      ]))
+    })
+  ]
 }

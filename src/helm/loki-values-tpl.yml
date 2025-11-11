@@ -1,0 +1,564 @@
+global:
+  clusterDomain: ${cluster_domain}
+  dnsService: "kube-dns"
+  dnsNamespace: "kube-system"
+kubectlImage:
+  registry: docker.io
+  repository: bitnami/kubectl
+loki:
+  image:
+    registry: docker.io
+    repository: grafana/loki
+    pullPolicy: IfNotPresent
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  serviceAnnotations: {}
+  serviceLabels: {}
+  config: |
+    {{- if .Values.enterprise.enabled}}
+    {{- tpl .Values.enterprise.config . }}
+    {{- else }}
+    auth_enabled: {{ .Values.loki.auth_enabled }}
+    {{- end }}
+
+    {{- with .Values.loki.server }}
+    server:
+      {{- toYaml . | nindent 2}}
+    {{- end}}
+
+    memberlist:
+    {{- if .Values.loki.memberlistConfig }}
+      {{- toYaml .Values.loki.memberlistConfig | nindent 2 }}
+    {{- else }}
+    {{- if .Values.loki.extraMemberlistConfig}}
+    {{- toYaml .Values.loki.extraMemberlistConfig | nindent 2}}
+    {{- end }}
+      join_members:
+        - {{ include "loki.memberlist" . }}
+        {{- with .Values.migrate.fromDistributed }}
+        {{- if .enabled }}
+        - {{ .memberlistService }}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- with .Values.loki.ingester }}
+    ingester:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- if .Values.loki.commonConfig}}
+    common:
+    {{- toYaml .Values.loki.commonConfig | nindent 2}}
+      storage:
+      {{- include "loki.commonStorageConfig" . | nindent 4}}
+    {{- end}}
+
+    {{- with .Values.loki.limits_config }}
+    limits_config:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    runtime_config:
+      file: /etc/loki/runtime-config/runtime-config.yaml
+
+    {{- with .Values.loki.memcached.chunk_cache }}
+    {{- if and .enabled (or .host .addresses) }}
+    chunk_store_config:
+      chunk_cache_config:
+        memcached:
+          batch_size: {{ .batch_size }}
+          parallelism: {{ .parallelism }}
+        memcached_client:
+          {{- if .host }}
+          host: {{ .host }}
+          {{- end }}
+          {{- if .addresses }}
+          addresses: {{ .addresses }}
+          {{- end }}
+          service: {{ .service }}
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.loki.schemaConfig }}
+    schema_config:
+    {{- toYaml .Values.loki.schemaConfig | nindent 2}}
+    {{- else }}
+    schema_config:
+      configs:
+        - from: 2025-10-31
+          store: tsdb
+          object_store: {{ .Values.loki.storage.type }}
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    {{- end }}
+
+    {{ include "loki.rulerConfig" . }}
+
+    {{- if or .Values.tableManager.retention_deletes_enabled .Values.tableManager.retention_period }}
+    table_manager:
+      retention_deletes_enabled: {{ .Values.tableManager.retention_deletes_enabled }}
+      retention_period: {{ .Values.tableManager.retention_period }}
+    {{- end }}
+
+    query_range:
+      cache_results: true
+      results_cache:
+        cache:
+          enabled_fifocache: true
+          fifocache:
+            max_size_items: 1024
+            ttl: 1h
+
+    {{- with .Values.loki.memcached.results_cache }}
+    query_range:
+      align_queries_with_step: true
+      {{- if and .enabled (or .host .addresses) }}
+      cache_results: {{ .enabled }}
+      results_cache:
+        cache:
+          default_validity: {{ .default_validity }}
+          memcached_client:
+            {{- if .host }}
+            host: {{ .host }}
+            {{- end }}
+            {{- if .addresses }}
+            addresses: {{ .addresses }}
+            {{- end }}
+            service: {{ .service }}
+            timeout: {{ .timeout }}
+      {{- end }}
+    {{- end }}
+
+    {{- with .Values.loki.storage_config }}
+    storage_config:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.query_scheduler }}
+    query_scheduler:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.compactor }}
+    compactor:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.analytics }}
+    analytics:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.querier }}
+    querier:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.index_gateway }}
+    index_gateway:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.frontend }}
+    frontend:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.frontend_worker }}
+    frontend_worker:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+
+    {{- with .Values.loki.distributor }}
+    distributor:
+      {{- tpl (. | toYaml) $ | nindent 4 }}
+    {{- end }}
+  auth_enabled: ${auth_enabled}
+  memberlistConfig: {}
+  extraMemberlistConfig: {}
+  tenants: []
+  server:
+    http_listen_port: 3100
+    grpc_listen_port: 9095
+    http_server_write_timeout: 310s
+    http_server_read_timeout: 310s
+
+  limits_config:
+    enforce_metric_name: false
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    max_cache_freshness_per_query: 10m
+    split_queries_by_interval: 30m
+    ingestion_rate_mb: 32
+    ingestion_burst_size_mb: 64
+    # per_stream_rate_limit: 5MB
+    max_streams_per_user: 8000
+    max_global_streams_per_user: 100000
+    max_query_parallelism: 64
+    tsdb_max_query_parallelism: 512
+    query_timeout: 5m
+    max_query_series: 5000
+    
+    retention_period: 720h
+    shard_streams:
+      enabled: true
+    volume_enabled: true
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: ${replicas}
+    compactor_address: '{{ include "loki.compactorAddress" . }}'
+  storage:
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+    type: ${storage_type}
+    # s3:
+    #   s3: null
+    #   endpoint: null
+    #   region: {s3_region}
+    #   secretAccessKey: null
+    #   accessKeyId: null
+    #   signatureVersion: null
+    #   s3ForcePathStyle: false
+    #   insecure: false
+    #   http_config: {}
+    # gcs:
+    #   chunkBufferSize: 0
+    #   requestTimeout: "10s"
+    #   enableHttp2: true
+    # azure:
+    #   accountName: null
+    #   accountKey: null
+    #   connectionString: null
+    #   useManagedIdentity: false
+    #   useFederatedToken: false
+    #   userAssignedId: null
+    #   requestTimeout: null
+    #   endpointSuffix: null
+    filesystem:
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
+  memcached:
+    chunk_cache:
+      enabled: false
+      host: ""
+      service: "memcached-client"
+      batch_size: 256
+      parallelism: 10
+    results_cache:
+      enabled: false
+      host: ""
+      service: "memcached-client"
+      timeout: "500ms"
+      default_validity: "24h"
+  schemaConfig: {}
+  rulerConfig: {}
+  structuredConfig: {}
+  query_scheduler: {}
+  storage_config:
+    boltdb_shipper:
+      shared_store: ${storage_type}
+    tsdb_shipper:
+      shared_store: ${storage_type}
+      cache_ttl: 168h
+      active_index_directory: /var/loki/index
+      cache_location: /var/loki/cache
+    hedging:
+      at: "250ms"
+      max_per_second: 20
+      up_to: 3
+    filesystem:
+      directory: /var/loki/chunks
+  compactor:
+    shared_store: ${storage_type}
+    delete_request_store: ${storage_type}
+    retention_enabled: true
+    working_directory: /var/loki/compactor
+    compaction_interval: 1h
+  analytics: {}
+  querier:
+    max_concurrent: 32
+    query_timeout: 5m
+    engine:
+      timeout: 5m
+  ingester:
+    chunk_encoding: snappy
+    max_chunk_age: 4h
+    wal:
+      enabled: true
+  index_gateway:
+    mode: ring
+  frontend:
+    scheduler_address: '{{ include "loki.querySchedulerAddress" . }}'
+  frontend_worker:
+    parallelism: 2048
+    scheduler_address: '{{ include "loki.querySchedulerAddress" . }}'
+  distributor: {}
+
+enterprise:
+  enabled: false
+
+migrate:
+  fromDistributed:
+    enabled: false
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+test:
+  enabled: false
+  prometheusAddress: ${prometheus_address}
+  timeout: 1m
+  labels: {}
+  annotations: {}
+  image:
+    registry: docker.io
+    repository: grafana/loki-helm-test
+
+monitoring:
+  dashboards:
+    enabled: false
+    namespace: null
+    annotations:
+      grafana_folder: ${grafana_folder}
+    labels:
+      grafana_dashboard: "1"
+  rules:
+    enabled: true
+    alerting: true
+    namespace: null
+    annotations: {}
+    labels: {}
+    additionalRuleLabels: {}
+    additionalGroups:
+    - name: additional-loki-rules
+      rules:
+        - record: job:loki_request_duration_seconds_bucket:sum_rate
+          expr: sum(rate(loki_request_duration_seconds_bucket[1m])) by (le, job)
+        - record: job_route:loki_request_duration_seconds_bucket:sum_rate
+          expr: sum(rate(loki_request_duration_seconds_bucket[1m])) by (le, job, route)
+        - record: node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate
+          expr: sum(rate(container_cpu_usage_seconds_total[1m])) by (node, namespace, pod, container)
+  serviceMonitor:
+    enabled: true
+    namespaceSelector: {}
+    annotations: {}
+    labels:
+      release: prometheus
+    interval: 15s
+    metricsInstance:
+      enabled: true
+      annotations: {}
+      labels: {}
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+write:
+  replicas: 0
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage:
+    behavior:
+      scaleUp:
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 900
+      scaleDown:
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 1800
+        stabilizationWindowSeconds: 3600
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  selectorLabels: {}
+  service:
+    annotations: {}
+    labels: {}
+  targetModule: "write"
+  extraArgs: []
+  extraEnv: []
+  extraEnvFrom: []
+  persistence:
+    volumeClaimsEnabled: true
+    dataVolumeParameters:
+      emptyDir: {}
+    enableStatefulSetAutoDeletePVC: false
+    size: ${persistence_size}
+    storageClass: ${storage_class}
+
+tableManager:
+  enabled: false
+
+read:
+  replicas: 0
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage:
+    behavior: {}
+    #  scaleUp:
+    #   stabilizationWindowSeconds: 300
+    #   policies:
+    #   - type: Pods
+    #     value: 1
+    #     periodSeconds: 60
+    #  scaleDown:
+    #   stabilizationWindowSeconds: 300
+    #   policies:
+    #   - type: Pods
+    #     value: 1
+    #     periodSeconds: 180
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  service:
+    annotations: {}
+    labels: {}
+  targetModule: "read"
+  legacyReadTarget: false
+  extraArgs: []
+  extraEnv: []
+  extraEnvFrom: []
+  persistence:
+    enableStatefulSetAutoDeletePVC: true
+    size: ${persistence_size}
+    storageClass: ${storage_class}
+
+backend:
+  replicas: 0
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 70
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  selectorLabels: {}
+  service:
+    annotations: {}
+    labels: {}
+  targetModule: "backend"
+  extraArgs: []
+  extraEnv: []
+  extraEnvFrom: []
+  persistence:
+    volumeClaimsEnabled: true
+    enableStatefulSetAutoDeletePVC: true
+    size: ${persistence_size}
+    storageClass: ${storage_class}
+
+singleBinary:
+  replicas: ${replicas}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 60
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  selectorLabels: {}
+  service:
+    annotations: {}
+    labels: {}
+  targetModule: "all"
+  extraArgs:
+    - -config.expand-env=true
+  # extraEnv:
+  #   - name: GOOGLE_APPLICATION_CREDENTIALS
+  #     value: /var/secrets/google/key.json
+  # extraEnvFrom: []
+  # extraVolumeMounts:
+  #   - name: google-cloud-key
+  #     mountPath: /var/secrets/google
+  # extraVolumes:
+  #   - name: google-cloud-key
+  #     secret:
+  #       secretName: $${gcs_key_secret}
+  resources:
+    limits:
+    ##    cpu: 100m
+      memory: 8Gi
+    requests:
+      # cpu: 100m
+      memory: 4Gi
+  persistence:
+    enableStatefulSetAutoDeletePVC: true
+    enabled: true
+    size: ${persistence_size}
+    storageClass: ${storage_class}
+
+ingress:
+  enabled: false
+
+memberlist:
+  cluster_label: "legion"
+  cluster_label_verification_disabled: true
+  service:
+    publishNotReadyAddresses: false
+
+gateway:
+  enabled: true
+  replicas: 1
+  verboseLogging: true
+  autoscaling:
+    enabled: false
+  image:
+    # registry: docker.io
+    repository: nginxinc/nginx-unprivileged
+    tag: 1.24-alpine
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  extraArgs: []
+  extraEnv: []
+  extraEnvFrom: []
+  service:
+    port: 80
+    type: ClusterIP
+  ingress:
+    enabled: false
+networkPolicy:
+  enabled: false
+  alertmanager:
+    port: 9093
+tracing:
+  jaegerAgentHost: ""
+
+minio:
+  enabled: false
+
+extraObjects: []
+
+sidecar:
+  image:
+    repository: kiwigrid/k8s-sidecar
+    tag: 1.24.3
+    sha: ""
+    pullPolicy: IfNotPresent
+  resources: {}
+  rules:
+    enabled: true
+    label: loki_rule
+    labelValue: ""
+    folder: /rules
+    searchNamespace: null
+    watchMethod: WATCH
+    resource: both
