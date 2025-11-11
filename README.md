@@ -1,15 +1,6 @@
 # devops-task
 DevOps Engineer Task
 
-### Git-crypt Howto
-
-This repository is using [git-crypt](https://www.agwa.name/projects/git-crypt/) to encrypt secrets within the repository itself.  Files described in the .gitattributes to use git-crypt filters are encrypted right before each commit and decrypted each time the repository is checked out.  To decrypt the repository one will need to obtain the **git-crypt-key** (at the moment of writing this documentation, the key is kept in 1Password DevOps shared vault).
-
-Simply clone the repository and execute:
-```Shell
-# git-crypt unlock /path/to/git-crypt-key
-```
-
 ### Setup Instructions
 
 1. SSH key in github
