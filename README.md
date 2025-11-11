@@ -64,6 +64,7 @@ Here are the endpoints we've setup so far:
     * Explore or Dilldown for logs and traces
 
   ![grafana](/docs/img/grafana.png)
+  ![dashboard](/docs/img/dashboard-nginx.png)
 
 * [Prometheus](http://prometheus.devops-task:32080/)
   Prometheus is used to collect and store metrics, as well as triggering alerts, checkout 'Alerts' page for configured alerts.
