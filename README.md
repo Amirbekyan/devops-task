@@ -7,7 +7,7 @@ The below instructions are compatibe with and tested on Debian 13.
 Use the automated setup script or proceed with manual setup described below:
 
 ```
-curl -sL https://raw.githubusercontent.com/Amirbekyan/devops-task/refs/heads/main/src/setup.sh | bash
+curl -sL https://raw.githubusercontent.com/Amirbekyan/devops-task/refs/heads/main/src/setup.sh | sudo bash
 ```
 
 #### Manual setup
@@ -84,7 +84,7 @@ Here are the endpoints we've setup so far:
   ArgoCD will send alerts to the same channels as Alert Manager in case of application creation, updates, degradation, deletion and sync issues.
 
 * [Sample App](http://hello.devops-task:32080/)
-  [Sample App new version preview](http://preview.hello.devops-task:32080/)
+* [Sample App new version preview](http://preview.hello.devops-task:32080/)
   Sample App current (and preview - in case of Rollout) home pages
 
 
@@ -110,7 +110,7 @@ project: default
 source:
   repoURL: https://github.com/amirbekyan/devops-task.git
   path: app/chart/olleh
-  targetRevision: amir.prometheus
+  targetRevision: HEAD
   helm:
     parameters:
       - name: replicaCount
