@@ -323,7 +323,7 @@ test:
 
 monitoring:
   dashboards:
-    enabled: true
+    enabled: false
     namespace: null
     annotations:
       grafana_folder: ${grafana_folder}

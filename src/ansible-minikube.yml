@@ -2,16 +2,6 @@
 - hosts: localhost
   become: true
   tasks:
-    # - name: install requirements
-    #   apt:
-    #     name: [
-    #       'apparmor',
-    #       'apparmor-profiles',
-    #       'conntrack',
-    #     ]
-    #     state: present
-    #     update_cache: true
-
     - name: create /usr/share/keyrings dir
       file:
         path: /usr/share/keyrings
@@ -205,7 +195,7 @@
         dest: /usr/local/bin/argocd
         mode: 0755
 
-    ## install minikube
+    ## setup minikube
     - name: install minikube
       get_url:
         url: https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
@@ -213,23 +203,14 @@
         mode: 0755
 
     - name: remove illicit config
-      file:
-        path: /etc/containerd/config.toml
-        state: absent
+      copy:
+        dest: /etc/containerd/config.toml
+        content: ""
+        mode: 0644
 
     - name: start minikube cluster
       shell:
         cmd: minikube start --driver=none --container-runtime=containerd --addons=metrics-server --addons=default-storageclass --addons=storage-provisioner --cni=calico # --network-plugin=cni
-
-    # ## install calico cni
-    # - name: get latest version tag for calico
-    #   shell:
-    #     cmd: curl -s https://github.com/projectcalico/calico/releases | grep -Eo "calico/tree/v[0-9.]+" | grep -Eo "v[0-9.]+" | head -n1
-    #   register: calico_version
-
-    # - name: install calico typha
-    #   shell:
-    #     cmd: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version.stdout }}/manifests/calico-typha.yaml
 
   handlers:
     - name: enable now cri-o

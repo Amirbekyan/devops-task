@@ -27,7 +27,7 @@
       community.docker.docker_image:
         build:
           path: ../app
-        name: app
+        name: devops-task
         tag: bravo
         source: build
         force_source: yes

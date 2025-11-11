@@ -23,7 +23,7 @@ resource "helm_release" "argo_rollouts" {
   namespace  = kubernetes_namespace.argo_rollouts.id
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-rollouts"
-  version    = "2.38.0"
+  version    = "2.40.5"
 
   values = [
     templatefile(local.argo_rollouts.values_tpl, {

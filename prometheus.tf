@@ -51,7 +51,6 @@ locals {
         http_client_timeout = "310s"
       }
       auth = {
-        # disable_login_form = true
         disable_login_form = false
       }
       "auth.anonymous" = {
@@ -66,20 +65,22 @@ locals {
     grafana_default_datasource_url  = "http://prometheus-prometheus:9090"
     grafana_default_datasource_type = "prometheus"
     grafana_dashboards = {
-      loki = {
-        loki     = "loki_rev1"
-        loki_log = "loki-log_rev2"
+      logs = {
+        loki      = "loki_rev1"
+        loki_log  = "loki-log_rev2"
+        fluentbit = "fluentbit_rev1" # https://docs.fluentbit.io/manual/administration/monitoring#grafana-dashboard-and-alerts
       }
-      general = {
-        fluentbit            = "fluentbit_rev1"              # https://docs.fluentbit.io/manual/administration/monitoring#grafana-dashboard-and-alerts
+      argocd = {
+        argocd_official      = "argocd-official_rev1"      # https://grafana.com/grafana/dashboards/14584-argocd/
+        argocd_operational   = "argocd-operational_rev4"   # https://grafana.com/grafana/dashboards/19993-argocd-operational-overview/
+        argocd_applications  = "argocd-applications_rev4"  # https://grafana.com/grafana/dashboards/19974-argocd-application-overview/
+        argocd_notifications = "argocd-notifications_rev4" # https://grafana.com/grafana/dashboards/19975-argocd-notifications-overview/
+      }
+      ingress = {
         ingress_nginx        = "ingress-nginx-overview_rev3" # https://grafana.com/grafana/dashboards/16677-ingress-nginx-overview/
         ingress_nginx_rhp    = "ingress-nginx-rhp_rev2"      # https://grafana.com/grafana/dashboards/20510-ingress-nginx-request-handling-performance/
         ingress_nginx_status = "ingress-nginx-status_rev1"   # https://grafana.com/grafana/dashboards/20275-ingress-nginx-dashboard/
         ingress_nginx_misc   = "ingress-nginx-misc_rev1"     # https://grafana.com/grafana/dashboards/21336-nginx-ingress-controller/
-        argocd_official      = "argocd-official_rev1"        # https://grafana.com/grafana/dashboards/14584-argocd/
-        argocd_operational   = "argocd-operational_rev4"     # https://grafana.com/grafana/dashboards/19993-argocd-operational-overview/
-        argocd_applications  = "argocd-applications_rev4"    # https://grafana.com/grafana/dashboards/19974-argocd-application-overview/
-        argocd_notifications = "argocd-notifications_rev4"   # https://grafana.com/grafana/dashboards/19975-argocd-notifications-overview/
       }
     }
   }
@@ -90,7 +91,7 @@ resource "kubernetes_namespace" "prometheus" {
     name = local.prometheus.namespace_name
   }
 
-  depends_on = [null_resource.minikube]
+  depends_on = [null_resource.wait_for_minikube]
 }
 
 resource "helm_release" "prometheus" {
@@ -188,10 +189,6 @@ resource "helm_release" "prometheus" {
                 datasourceUid      = "loki"
                 spanStartTimeShift = "-1h"
                 spanEndTimeShift   = "1h"
-                # tags = [
-                #   "spanId",
-                #   "traceId"
-                # ]
                 tags = [
                   {
                     key   = "traceId"
@@ -201,34 +198,6 @@ resource "helm_release" "prometheus" {
                     key   = "spanId"
                     value = "span_id"
                   },
-                  # {
-                  #   key   = "service.name"
-                  #   value = "app"
-                  # },
-                  # {
-                  #   key   = "net.peer.ip"
-                  #   value = "remote_addr"
-                  # },
-                  # {
-                  #   key   = "http.host"
-                  #   value = "host"
-                  # },
-                  # {
-                  #   key   = "http.target"
-                  #   value = "url"
-                  # },
-                  # {
-                  #   key   = "http.user_agent"
-                  #   value = "userAgent"
-                  # },
-                  # {
-                  #   key   = "http.method"
-                  #   value = "method"
-                  # },
-                  # {
-                  #   key   = "http.status_code"
-                  #   value = "status"
-                  # }
                 ]
                 filterBySpanID  = false
                 filterByTraceID = true
@@ -248,10 +217,6 @@ resource "helm_release" "prometheus" {
                     key   = "span.name"
                     value = "span_name"
                   },
-                  # {
-                  #   key   = "http.status_code"
-                  #   value = "status_code"
-                  # }
                 ]
                 queries = [
                   {

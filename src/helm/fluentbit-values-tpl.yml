@@ -77,7 +77,6 @@ clusterfilters:
 
   - name: olleh
     spec:
-      # matchRegex: kube\.(olleh).*
       matchRegex: kube.olleh.*
       filters:
         - parser:
@@ -94,7 +93,6 @@ clusterparsers:
 clusteroutputs:
   - name: loki
     spec:
-      # matchRegex = "(?:kube|service)\\.(.*)"
       match: kube.*
       loki:
         autoKubernetesLabels: "on"
@@ -118,9 +116,6 @@ clusteroutputs:
           - $host
           - $status
           - $remote_addr
-          ## app
-          - $context
-          ## shared between http and app
           - $app
           - $trace_id
           - $span_id
