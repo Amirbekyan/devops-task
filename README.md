@@ -77,6 +77,7 @@ Here are the endpoints we've setup so far:
   Alert Manager handles alerts routing and notifications.
 
   ![alerts](/docs/img/alertmanager.png)
+  ![notifications](/docs/img/notifications.png)
 
 * [ArgoCD](http://argocd.devops-task:32080/)
   We'll use ArgoCD to deploy our Sample App to Minikube in the next step.
