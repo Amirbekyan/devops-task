@@ -66,9 +66,9 @@ locals {
     grafana_default_datasource_type = "prometheus"
     grafana_dashboards = {
       logs = {
-        loki      = "loki_rev1"
-        loki_log  = "loki-log_rev2"
-        fluentbit = "fluentbit_rev1" # https://docs.fluentbit.io/manual/administration/monitoring#grafana-dashboard-and-alerts
+        loki         = "loki_rev1"
+        loki_metrics = "loki-metrics_rev1"
+        fluentbit    = "fluentbit_rev1" # https://docs.fluentbit.io/manual/administration/monitoring#grafana-dashboard-and-alerts
       }
       argocd = {
         argocd_official      = "argocd-official_rev1"      # https://grafana.com/grafana/dashboards/14584-argocd/
